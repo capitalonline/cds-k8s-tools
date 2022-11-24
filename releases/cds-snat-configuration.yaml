@@ -1,0 +1,97 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cds-snat-configuration-sa
+  namespace: kube-system
+
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  namespace: kube-system
+  name: cds-snat-configuration-cluster-role
+rules:
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "watch", "list"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cds-snat-configuration-role-bind
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cds-snat-configuration-cluster-role
+subjects:
+  - kind: ServiceAccount
+    name: cds-snat-configuration-sa
+    namespace: kube-system
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: snat-configmap
+  namespace: kube-system
+data:
+  snat-config: |+
+    [default]
+    # snat.beta.kubernetes.io/default = 10.240.238.4
+    # snat.beta.kubernetes.io/snat1 = 10.240.238.1
+    # snat.beta.kubernetes.io/snat2 = 10.240.238.2
+    snat.refresh.interval = 60
+
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: cds-snat-configuration
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      cdsapp: cds-snat-configuration
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        cdsapp: cds-snat-configuration
+    spec:
+      containers:
+        - env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
+          image: capitalonline/cds-snat-configuration:latest
+          name: cds-snat-configuration
+          # command: ["/app/cds-snat-configuration"]
+          imagePullPolicy: Always
+          resources: {}
+          securityContext:
+            privileged: true
+          stdin: true
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          tty: true
+          volumeMounts:
+            - mountPath: /snat/
+              name: snat-config
+      dnsPolicy: ClusterFirst
+      serviceAccountName: cds-snat-configuration-sa
+      automountServiceAccountToken: true
+      hostIPC: true
+      hostPID: true
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - configMap:
+            defaultMode: 420
+            name: snat-configmap
+          name: snat-config
