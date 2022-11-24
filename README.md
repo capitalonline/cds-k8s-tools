@@ -11,7 +11,7 @@ The support for other will be added soon.
 - To deploy the `SNat Configuration Function` to your k8s, simply run:
 
   ```bash
-  kubectl create -f https://repos.capitalonline.net/cds-cloud-os/cds-k8s-tools/-/blob/master/releases/cds-snat-configuration.yaml
+  kubectl create -f https://raw.githubusercontent.com/capitalonline/cds-k8s-tools/main/releases/cds-snat-configuration.yaml
   ```
 
   
