@@ -11,6 +11,7 @@ require (
 	k8s.io/client-go v0.25.4
 )
 
+
 require (
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
