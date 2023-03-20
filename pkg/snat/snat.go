@@ -160,6 +160,9 @@ func UpdateGw() (err error) {
 }
 
 func NewEventGw(name string) {
+	if name != "timer" {
+		SMonitor.ChangeMonitor()
+	}
 	log.Infof("starting event for update gw by %s", name)
 	if err := UpdateGw(); err != nil {
 		log.Fatal(err)
@@ -183,15 +186,15 @@ func Run() {
 	timer1 := time.NewTicker(time.Duration(refreshInterval) * time.Second)
 	conf.OnConfChange(NewEventGw)
 	conf.WatchConf()
-	wg := sync.WaitGroup{}
-	wg.Add(1)
+	wg := new(sync.WaitGroup)
+	wg.Add(2)
 	go func() {
+		defer wg.Done()
 		for {
 			select {
 			case i, ok := <-refreshCh:
 				if !ok || i == 0 {
 					log.Infof("ending the timer")
-					wg.Done()
 					timer1.Stop()
 					return
 				}
@@ -205,5 +208,6 @@ func Run() {
 			}
 		}
 	}()
+	go CheckSNat(wg)
 	wg.Wait()
 }

@@ -2,7 +2,6 @@ package client
 
 import (
 	"fmt"
-	"io/ioutil"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"os"
@@ -23,10 +22,10 @@ type ServiceAccount struct {
 	*kubernetes.Clientset
 }
 
-var sa *ServiceAccount
+var Sa *ServiceAccount
 
 func init() {
-	sa = NewServiceAccount()
+	Sa = NewServiceAccount()
 }
 
 func NewServiceAccount() *ServiceAccount {
@@ -41,12 +40,12 @@ func NewServiceAccount() *ServiceAccount {
 	sa := new(ServiceAccount)
 	sa.Host = host
 	sa.Port = portHttps
-	if content, err := ioutil.ReadFile(tokenFile); err != nil {
+	if content, err := os.ReadFile(tokenFile); err != nil {
 		panic(err)
 	} else {
 		sa.Token = string(content)
 	}
-	if content, err := ioutil.ReadFile(caFile); err != nil {
+	if content, err := os.ReadFile(caFile); err != nil {
 		panic(err)
 	} else {
 		sa.Ca = content

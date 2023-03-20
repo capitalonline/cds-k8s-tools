@@ -1,0 +1,169 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cds-alarm-service-sa
+  namespace: kube-system
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  namespace: kube-system
+  name: cds-alarm-service-cluster-role
+  annotations:
+    rbac.authorization.kubernetes.io/autoupdate: "true"
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+      - update
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+    verbs:
+      - '*'
+  - apiGroups:
+      - ""
+    resources:
+      - nodes/status
+    verbs:
+      - patch
+  - apiGroups:
+      - ""
+    resources:
+      - services
+    verbs:
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - services/status
+    verbs:
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - serviceaccounts
+    verbs:
+      - create
+  - apiGroups:
+      - ""
+    resources:
+      - persistentvolumes
+    verbs:
+      - get
+      - list
+      - update
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - endpoints
+    verbs:
+      - create
+      - get
+      - list
+      - watch
+      - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cds-alarm-service-role-bind
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cds-alarm-service-cluster-role
+subjects:
+  - kind: ServiceAccount
+    name: cds-alarm-service-sa
+    namespace: kube-system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cds-alarm-service
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cds-alarm-service
+  template:
+    metadata:
+      labels:
+        app: cds-alarm-service
+    spec:
+      nodeSelector:
+        node-role.kubernetes.io/master: ""
+      tolerations:
+        - key: "node-role.cck.net/infra"
+          effect: NoSchedule
+        - key: "node-role.kubernetes.io/master"
+          effect: NoSchedule
+      containers:
+        - name: cds-alarm-service
+          image: gongyuxin/cds-alarm-service:latest
+          imagePullPolicy: Always
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
+            - name: CDS_OVERSEA
+              valueFrom:
+                configMapKeyRef:
+                  name: cds-properties
+                  key: oversea
+            - name: CDS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: cck-secrets
+                  key: access_key_id
+            - name: CDS_ACCESS_KEY_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: cck-secrets
+                  key: access_key_secret
+            - name: CDS_CLUSTER_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: cds-properties
+                  key: k8s_cluster_id
+            - name: CDS_CLUSTER_REGION_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: cds-properties
+                  key: site_id
+            - name: DEPLOY_TYPE
+              valueFrom:
+                configMapKeyRef:
+                  name: cds-properties
+                  key: deploy_type
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cds-alarm-service
+  namespace: kube-system
+spec:
+  type: ClusterIP
+  ports:
+    - name: http-port
+      port: 39989
+      protocol: TCP
+      targetPort: 80
+  selector:
+    app: cds-alarm-service
