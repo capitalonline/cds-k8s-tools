@@ -2,7 +2,7 @@ package utils
 
 import (
 	"cds-k8s-tools/pkg/oscmd"
-	"fmt"
+	log "github.com/sirupsen/logrus"
 	"os"
 )
 
@@ -47,8 +47,10 @@ func init() {
 
 	if os.Getenv("DEPLOY_TYPE") == "pre" {
 		APIHost = preApiHost
-		sh := fmt.Sprintf("echo '101.251.217.74 %s' >> hosts", preApiHost)
-		_, _ = oscmd.CmdToNode(sh)
+		_, err := oscmd.Run("sh", "-c", "echo '101.251.217.74  cdsapi-gateway.gic.pre' >> /etc/hosts")
+		if err != nil {
+			log.Warnf("set /etc/hosts err: %v", err)
+		}
 	} else if os.Getenv("DEPLOY_TYPE") == "pro" {
 		APIHost = defaultApiHost
 	}

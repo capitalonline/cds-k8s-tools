@@ -61,7 +61,7 @@ func Alarm(c *gin.Context) {
 		var cckAlarm = CckAlarmReq{
 			ClusterId:  os.Getenv(CDS_CLUSTER_ID),
 			Site:       os.Getenv(CDS_CLUSTER_REGION_ID),
-			Msg:        fmt.Sprintf("集群 %s 节点告警：%s", request.Message.NodeName, request.Message.Msg),
+			Msg:        request.Message.Msg,
 			Hostname:   request.Name,
 			AlarmType:  request.Type,
 			AlarmGroup: request.Group,

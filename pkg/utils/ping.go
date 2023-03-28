@@ -18,15 +18,15 @@ func Ping(host string, seq int16) (bool, int) {
 		err     error
 		success bool
 	)
-	cname, _ := net.LookupCNAME(host)
+	// cname, _ := net.LookupCNAME(host)
 	startTime := time.Now()
 	conn, err := net.DialTimeout("ip4:icmp", host, time.Duration(timeout*1000*1000))
 	if err != nil {
 		log.Error(err)
 		return false, 0
 	}
-	ip := conn.RemoteAddr()
-	log.Info("ping " + cname + " [" + ip.String() + "]")
+	// ip := conn.RemoteAddr()
+	// log.Info("ping " + cname + " [" + ip.String() + "]")
 
 	id0, id1 := genidentifier(host)
 

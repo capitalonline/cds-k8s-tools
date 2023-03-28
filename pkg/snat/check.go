@@ -3,6 +3,7 @@ package snat
 import (
 	"bytes"
 	"cds-k8s-tools/pkg/client"
+	"cds-k8s-tools/pkg/oscmd"
 	"cds-k8s-tools/pkg/service"
 	"cds-k8s-tools/pkg/utils"
 	"context"
@@ -10,8 +11,10 @@ import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"net"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -20,13 +23,22 @@ const (
 	CDS_OVERSEA = "CDS_OVERSEA"
 )
 
+type PingInfo struct {
+	Success bool
+	Ip      string
+}
+
+var (
+	CheckWorkerChan = make(chan *PingInfo, 5)
+	CheckPodChan    = make(chan *PingInfo, 5)
+)
+
 type Monitor struct {
-	Data        []int
-	Index       int
 	Sum         int
 	Limit       int
-	Error       bool
-	RecoverStat int
+	WorkerError bool
+	PodError    bool
+	RecoverSum  int
 	Step        int
 	Host        string
 }
@@ -35,12 +47,11 @@ var SMonitor *Monitor
 
 func init() {
 	SMonitor = &Monitor{
-		Data:        make([]int, 10),
-		Index:       0,
 		Sum:         10,
-		Limit:       6,
-		Error:       false,
-		RecoverStat: 0,
+		Limit:       1,
+		WorkerError: false,
+		PodError:    false,
+		RecoverSum:  3,
 		Step:        60,
 		Host:        "",
 	}
@@ -60,7 +71,11 @@ func (m *Monitor) ChangeMonitor() {
 	// 检查的间隔
 	step := conf.GetKeyInt("default.snat.check.step")
 	if step != 0 {
-		m.Step = step
+		if step < 30 {
+			m.Step = 30
+		} else {
+			m.Step = step
+		}
 	}
 	// ping的地址
 	host := conf.GetKeyString("default.snat.check.host")
@@ -71,104 +86,117 @@ func (m *Monitor) ChangeMonitor() {
 	sum := conf.GetKeyInt("default.snat.check.sum")
 	if sum != 0 {
 		m.Sum = sum
-		m.Data = make([]int, sum)
-		m.Index = 0
 	}
 	// 出现了limit次不通
 	limit := conf.GetKeyInt("default.snat.check.limit")
 	if limit != 0 {
 		m.Limit = limit
 	}
-}
 
-func (m *Monitor) Put(data int) {
-	m.Data[m.Index] = data
-	m.Index++
-	if m.Index >= m.Sum {
-		m.Index = 0
+	// 检查出网能力recover次成功后恢复
+	r := conf.GetKeyInt("default.snat.check.recover")
+	if r != 0 {
+		m.RecoverSum = r
 	}
 }
 
-func (m *Monitor) RecoverUp() {
-	m.RecoverStat += 1
-
-}
-
-func (m *Monitor) RecoverFail() {
-	m.RecoverStat = 0
-}
-
-func (m *Monitor) Alarm() bool {
-	n := 0
-	for _, data := range m.Data {
-		n += data
-	}
-	if n >= m.Limit {
-		m.Error = true
+func (m *Monitor) Alarm(isPod bool) string {
+	info := fmt.Sprintf("集群%s：", os.Getenv(NodeNameKey))
+	if isPod {
+		m.PodError = true
+		info += "Pod出网异常"
 	} else {
-		m.Error = false
+		m.WorkerError = true
+		info += "节点出网异常"
 	}
-	return m.Error
+	return info
 }
 
-func (m *Monitor) Recover() bool {
-	if m.RecoverStat >= 3 {
-		m.Error = false
-		m.Data = make([]int, m.Sum)
-		m.RecoverStat = 0
-		return true
+func (m *Monitor) Recover(isPod bool) string {
+	info := fmt.Sprintf("集群%s：", os.Getenv(NodeNameKey))
+	if isPod {
+		m.PodError = false
+		info += "Pod出网恢复"
+	} else {
+		m.WorkerError = false
+		info += "节点出网恢复"
 	}
-	return false
+	return info
+}
+
+func CheckWorkerResult(wg *sync.WaitGroup) {
+	defer wg.Done()
+	for v := range CheckWorkerChan {
+		if !v.Success {
+			if !SMonitor.WorkerError {
+				// 告警
+				info := SMonitor.Alarm(false)
+				alarm(&service.AlarmMessage{
+					NodeName: os.Getenv(NodeNameKey),
+					Status:   "error",
+					Msg:      fmt.Sprintf("%s(ping %s 丢包)", info, v.Ip),
+				})
+				go checkRecover(v.Ip, false)
+			}
+		}
+	}
+}
+
+func CheckPodResult(wg *sync.WaitGroup) {
+	defer wg.Done()
+	for v := range CheckPodChan {
+		if !v.Success {
+			if !SMonitor.PodError {
+				// 告警
+				info := SMonitor.Alarm(true)
+				alarm(&service.AlarmMessage{
+					NodeName: os.Getenv(NodeNameKey),
+					Status:   "error",
+					Msg:      fmt.Sprintf("%s(ping %s 丢包)", info, v.Ip),
+				})
+				go checkRecover(v.Ip, true)
+			}
+		}
+	}
 }
 
 func CheckSNat(wg *sync.WaitGroup) {
 	defer wg.Done()
-	var seq int16 = 1
 	for {
 		time.Sleep(time.Duration(SMonitor.Step) * time.Second)
-		if !SMonitor.Error {
-			success, _ := utils.Ping(SMonitor.Host, seq)
-			if success {
-				SMonitor.Put(0)
-			} else {
-				log.Infof("ping %s error", SMonitor.Host)
-				SMonitor.Put(1)
+		if !SMonitor.WorkerError {
+			for _, dns := range getDnsFromNode() {
+				go ping(dns, SMonitor.Sum, SMonitor.Limit, false, true)
 			}
-			if SMonitor.Alarm() {
-				// 进入告警状态，发送告警请求
-				alarm(&service.AlarmMessage{
-					NodeName: os.Getenv(NodeNameKey),
-					Status:   "error",
-					Msg:      "SNat出网异常",
-				})
-				go checkRecover()
-			}
-			seq++
+		}
+		if !SMonitor.PodError {
+			go ping(SMonitor.Host, SMonitor.Sum, SMonitor.Limit, true, true)
 		}
 	}
 }
 
-func checkRecover() {
-	var seq int16 = 1
+func checkRecover(host string, isPod bool) {
+	var (
+		ok = 0
+	)
 	for {
 		log.Infof("Recover Check")
 		time.Sleep(30 * time.Second)
-		success, _ := utils.Ping(SMonitor.Host, seq)
-		if success {
-			SMonitor.RecoverUp()
+		if ping(host, 5, 1, isPod, false) {
+			ok++
 		} else {
-			SMonitor.RecoverFail()
+			ok = 0
 		}
-		if SMonitor.Recover() {
+		if ok >= SMonitor.RecoverSum {
+			info := SMonitor.Recover(isPod)
 			// 恢复, 发送回复请求
 			alarm(&service.AlarmMessage{
 				NodeName: os.Getenv(NodeNameKey),
 				Status:   "recover",
-				Msg:      "SNat出网能力恢复",
+				Msg:      info,
 			})
 			return
 		}
-		seq++
 	}
 }
 
@@ -210,4 +238,57 @@ func alarm(msg *service.AlarmMessage) {
 	if err != nil {
 		return
 	}
+}
+
+func ping(host string, sum, limit int, isPod, sendChan bool) bool {
+	var (
+		seq  int16 = 1
+		fail       = 0
+		ok         = true
+	)
+	for i := 1; i <= sum; i++ {
+		success, _ := utils.Ping(host, seq)
+		if !success {
+			fail += 1
+		}
+		if fail >= limit {
+			ok = false
+			break
+		}
+		seq += 1
+		time.Sleep(500 * 1000 * 1000)
+	}
+	if !ok && sendChan {
+		if isPod {
+			CheckPodChan <- &PingInfo{
+				Success: ok,
+				Ip:      host,
+			}
+		} else {
+			CheckWorkerChan <- &PingInfo{
+				Success: ok,
+				Ip:      host,
+			}
+		}
+	}
+	return ok
+}
+
+func getDnsFromNode() (dnsList []string) {
+	result, err := oscmd.CmdToNode("grep 'nameserver' /etc/resolv.conf")
+	if err != nil {
+		return
+	}
+	log.Infof("%s", result)
+	list := strings.Split(strings.TrimSpace(result), "\n")
+	for _, v := range list {
+		v = strings.ReplaceAll(v, " ", "")
+		dns := strings.ReplaceAll(v, "nameserver", "")
+		addr := net.ParseIP(dns)
+		if addr != nil {
+			dnsList = append(dnsList, dns)
+		}
+	}
+	log.Infof("%v", dnsList)
+	return
 }
