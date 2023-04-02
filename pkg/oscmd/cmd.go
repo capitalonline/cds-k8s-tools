@@ -26,10 +26,10 @@ func Run(name string, arg ...string) (string, error) {
 		return "", err
 	}
 	go func() {
-		io.Copy(stdout, stdoutPipe)
+		_, _ = io.Copy(stdout, stdoutPipe)
 	}()
 	go func() {
-		io.Copy(stderr, stderrPipe)
+		_, _ = io.Copy(stderr, stderrPipe)
 	}()
 	if err = cmd.Wait(); err != nil {
 		return "", err

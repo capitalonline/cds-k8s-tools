@@ -1,21 +1,16 @@
-FROM alpine:3.16 AS build
-
-RUN apk update && apk add go git make
-
-ENV PRJ_DIR /tmp_project
-
-WORKDIR ${PRJ_DIR}
-
-COPY go.mod ${PRJ_DIR}
-COPY go.sum ${PRJ_DIR}
-RUN go mod download
+FROM golang:1.18 as build
+RUN mkdir /app
+RUN mkdir /app/bin
+COPY . /app/
+RUN go env -w GO111MODULE=on
+# RUN go env -w GOPROXY=https://goproxy.cn,direct
+RUN go env
 
 ARG bin_file
 
-COPY . ${PRJ_DIR}
-
-RUN make container-binary BIN_FILE=${bin_file} MAIN_FILE=${bin_file}.go && \
-    cp bin/${bin_file} /bin/${bin_file}
+WORKDIR /app
+RUN go mod tidy
+RUN CGO_ENABLED=0 GOARCH="amd64" GOOS="linux" go build -ldflags " -s -w" -o bin/${bin_file}  ./cmd/${bin_file}.go
 
 
 FROM alpine:3.16 as run
@@ -24,7 +19,7 @@ ARG bin_file
 
 ENV TO_BIN_FILE ${bin_file}
 
-COPY --from=build /bin/${bin_file} /app/${bin_file}
+COPY --from=build /app/bin/${bin_file} /app/${bin_file}
 
 WORKDIR /app/
 

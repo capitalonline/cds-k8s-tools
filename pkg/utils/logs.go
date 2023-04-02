@@ -10,6 +10,7 @@ import (
 )
 
 const (
+	LogType       = "LOG_TYPE"
 	LogfilePrefix = "/var/log/cds/"
 	MBSize        = 1024 * 1024
 )
@@ -17,7 +18,8 @@ const (
 // SetLogAttribute
 // rotate log file by 2M bytes
 // default print log to stdout and file both.
-func SetLogAttribute(logType, logName string) {
+func SetLogAttribute(logName string) {
+	logType := os.Getenv(LogType)
 	log.SetFormatter(&log.TextFormatter{
 		TimestampFormat: "2006-01-02 15:04:05",
 		//PrettyPrint:     true,
