@@ -12,9 +12,69 @@ metadata:
   namespace: kube-system
   name: cds-snat-configuration-cluster-role
 rules:
-  - apiGroups: [""]
-    resources: ["nodes"]
-    verbs: ["get", "watch", "list"]
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+      - update
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+    verbs:
+      - '*'
+  - apiGroups:
+      - ""
+    resources:
+      - nodes/status
+    verbs:
+      - patch
+  - apiGroups:
+      - ""
+    resources:
+      - services
+    verbs:
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - services/status
+    verbs:
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - serviceaccounts
+    verbs:
+      - create
+  - apiGroups:
+      - ""
+    resources:
+      - persistentvolumes
+    verbs:
+      - get
+      - list
+      - update
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - endpoints
+    verbs:
+      - create
+      - get
+      - list
+      - watch
+      - update
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -43,7 +103,9 @@ data:
     # snat.beta.kubernetes.io/snat1 = 10.240.238.1
     # snat.beta.kubernetes.io/snat2 = 10.240.238.2
     snat.refresh.interval = 60
-
+    snat.check.step = 60
+    snat.check.sum = 10
+    snat.check.limit = 1
 ---
 apiVersion: apps/v1
 kind: DaemonSet
@@ -67,7 +129,12 @@ spec:
                 fieldRef:
                   apiVersion: v1
                   fieldPath: spec.nodeName
-          image: capitalonline/cds-snat-configuration:latest
+            - name: CDS_OVERSEA
+              valueFrom:
+                configMapKeyRef:
+                  name: cds-properties
+                  key: oversea
+          image: capitalonline/cds-snat-configuration:v1.1.0
           name: cds-snat-configuration
           # command: ["/app/cds-snat-configuration"]
           imagePullPolicy: Always
