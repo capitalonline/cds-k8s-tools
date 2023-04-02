@@ -187,7 +187,7 @@ func Run() {
 	conf.OnConfChange(NewEventGw)
 	conf.WatchConf()
 	wg := new(sync.WaitGroup)
-	wg.Add(3)
+	wg.Add(4)
 	go func() {
 		defer wg.Done()
 		for {
