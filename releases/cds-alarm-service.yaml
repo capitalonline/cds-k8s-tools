@@ -114,7 +114,7 @@ spec:
           effect: NoSchedule
       containers:
         - name: cds-alarm-service
-          image: gongyuxin/cds-alarm-service:latest
+          image: capitalonline/cds-alarm-service:latest
           imagePullPolicy: Always
           env:
             - name: NODE_NAME

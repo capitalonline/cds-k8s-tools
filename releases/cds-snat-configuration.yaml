@@ -105,7 +105,7 @@ data:
     snat.refresh.interval = 60
     snat.check.step = 60
     snat.check.sum = 10
-    snat.check.limit = 6
+    snat.check.limit = 1
 ---
 apiVersion: apps/v1
 kind: DaemonSet
@@ -131,10 +131,10 @@ spec:
                   fieldPath: spec.nodeName
             - name: CDS_OVERSEA
               valueFrom:
-               configMapKeyRef:
-                 name: cds-properties
-                 key: oversea
-          image: gongyuxin/cds-snat-configuration:latest
+                configMapKeyRef:
+                  name: cds-properties
+                  key: oversea
+          image: capitalonline/cds-snat-configuration:v1.1.0
           name: cds-snat-configuration
           # command: ["/app/cds-snat-configuration"]
           imagePullPolicy: Always
