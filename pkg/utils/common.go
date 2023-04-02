@@ -2,6 +2,7 @@ package utils
 
 import (
 	"cds-k8s-tools/pkg/oscmd"
+	"fmt"
 	log "github.com/sirupsen/logrus"
 	"os"
 )
@@ -45,6 +46,8 @@ func init() {
 		AccessKeySecret = os.Getenv(accessKeySecretLiteral)
 	}
 
+	dnsDeal()
+
 	if os.Getenv("DEPLOY_TYPE") == "pre" {
 		APIHost = preApiHost
 		_, err := oscmd.Run("sh", "-c", "echo '101.251.217.74  cdsapi-gateway.gic.pre' >> /etc/hosts")
@@ -53,5 +56,28 @@ func init() {
 		}
 	} else if os.Getenv("DEPLOY_TYPE") == "pro" {
 		APIHost = defaultApiHost
+	} else if os.Getenv("DEPLOY_TYPE") == "" {
+		APIHost = defaultApiHost
 	}
+}
+
+func dnsDeal() {
+	dns := "nameserver 8.8.8.8"
+	oversea := os.Getenv("CDS_OVERSEA")
+	if oversea != "True" {
+		dns = "nameserver 114.114.114.114"
+	}
+	_, err := oscmd.Run("sh", "-c", "cp /etc/resolv.conf /etc/resolv.conf.bak")
+	if err != nil {
+		log.Warnf("cp /etc/resolv.conf /etc/resolv.conf.bak err: %v", err)
+		return
+	}
+
+	sh := fmt.Sprintf("sed '1i\\%s' /etc/resolv.conf.bak > /etc/resolv.conf", dns)
+	_, err = oscmd.Run("sh", "-c", sh)
+	if err != nil {
+		log.Warnf("add nameserver err: %v", err)
+		return
+	}
+
 }
