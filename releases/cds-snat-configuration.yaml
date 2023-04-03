@@ -134,7 +134,7 @@ spec:
                 configMapKeyRef:
                   name: cds-properties
                   key: oversea
-          image: capitalonline/cds-snat-configuration:v1.1.0
+          image: capitalonline/cds-snat-configuration:v1.1.2
           name: cds-snat-configuration
           # command: ["/app/cds-snat-configuration"]
           imagePullPolicy: Always
