@@ -14,6 +14,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -240,23 +241,67 @@ func alarm(msg *service.AlarmMessage) {
 	}
 }
 
+//func ping(host string, sum, limit int, isPod, sendChan bool) bool {
+//	var (
+//		seq  int16 = 1
+//		fail       = 0
+//		ok         = true
+//	)
+//	for i := 1; i <= sum; i++ {
+//		success, _ := utils.Ping(host, seq)
+//		if !success {
+//			fail += 1
+//		}
+//		if fail >= limit {
+//			ok = false
+//			break
+//		}
+//		seq += 1
+//		time.Sleep(500 * 1000 * 1000)
+//	}
+//	if !ok && sendChan {
+//		if isPod {
+//			CheckPodChan <- &PingInfo{
+//				Success: ok,
+//				Ip:      host,
+//			}
+//		} else {
+//			CheckWorkerChan <- &PingInfo{
+//				Success: ok,
+//				Ip:      host,
+//			}
+//		}
+//	}
+//	return ok
+//}
+
 func ping(host string, sum, limit int, isPod, sendChan bool) bool {
-	var (
-		seq  int16 = 1
-		fail       = 0
-		ok         = true
-	)
-	for i := 1; i <= sum; i++ {
-		success, _ := utils.Ping(host, seq)
-		if !success {
-			fail += 1
+	ok := true
+	pingCmd := fmt.Sprintf("ping %s -c %d", host, sum)
+	out, err := oscmd.Run("sh", "-c", pingCmd)
+	if err != nil {
+		ok = false
+		log.Errorf("ping %v cmd err: %v", host, err)
+	} else {
+		l := strings.Split(out, "\n")
+		for _, data := range l {
+			if strings.Contains(data, "packet loss") {
+				ll := strings.Split(data, ",")
+				for _, lossData := range ll {
+					if strings.Contains(lossData, "packet loss") {
+						str := strings.ReplaceAll(strings.TrimSpace(lossData), "% packet loss", "")
+						num, _ := strconv.ParseFloat(str, 64)
+						if num/100 >= float64(limit)/float64(sum) {
+							ok = false
+						} else {
+							ok = true
+						}
+						log.Infof("ping %s request: [%.2f/%.2f](%v)", host, num/100, float64(limit)/float64(sum), lossData)
+					}
+				}
+				break
+			}
 		}
-		if fail >= limit {
-			ok = false
-			break
-		}
-		seq += 1
-		time.Sleep(500 * 1000 * 1000)
 	}
 	if !ok && sendChan {
 		if isPod {
