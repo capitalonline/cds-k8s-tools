@@ -50,7 +50,7 @@ func init() {
 
 	if os.Getenv("DEPLOY_TYPE") == "pre" {
 		APIHost = preApiHost
-		_, err := oscmd.Run("sh", "-c", "echo '101.251.217.74  cdsapi-gateway.gic.pre' >> /etc/hosts")
+		_, err := oscmd.Run("sh", "-c", "echo '127.0.0.1  cdsapi-gateway.gic.pre' >> /etc/hosts")
 		if err != nil {
 			log.Warnf("set /etc/hosts err: %v", err)
 		}
