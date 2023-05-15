@@ -101,6 +101,14 @@ func (m *Monitor) ChangeMonitor() {
 	}
 }
 
+func (m *Monitor) Error(isPod bool) {
+	if isPod {
+		m.PodError = true
+	} else {
+		m.WorkerError = true
+	}
+}
+
 func (m *Monitor) Alarm(isPod bool) string {
 	info := fmt.Sprintf("集群%s：", os.Getenv(NodeNameKey))
 	if isPod {
@@ -131,6 +139,7 @@ func CheckWorkerResult(wg *sync.WaitGroup) {
 		if !v.Success {
 			if !SMonitor.WorkerError {
 				// 进入异常状态
+				SMonitor.Error(false)
 				go checkRecover(v.Ip, false)
 			}
 		}
@@ -143,6 +152,7 @@ func CheckPodResult(wg *sync.WaitGroup) {
 		if !v.Success {
 			if !SMonitor.PodError {
 				// 进入异常状态
+				SMonitor.Error(true)
 				go checkRecover(v.Ip, true)
 			}
 		}
@@ -251,6 +261,7 @@ func ping(host string, sum, limit int, isPod, sendChan bool) (bool, string) {
 	out, err := oscmd.Run("sh", "-c", pingCmd)
 	if err != nil {
 		ok = false
+		pingInfo = "ping不通"
 		log.Errorf("ping %v cmd err: %v", host, err)
 	} else {
 		l := strings.Split(out, "\n")
