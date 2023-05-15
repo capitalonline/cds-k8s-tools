@@ -49,7 +49,7 @@ var SMonitor *Monitor
 func init() {
 	SMonitor = &Monitor{
 		Sum:         10,
-		Limit:       1,
+		Limit:       3,
 		WorkerError: false,
 		PodError:    false,
 		RecoverSum:  3,
@@ -130,13 +130,7 @@ func CheckWorkerResult(wg *sync.WaitGroup) {
 	for v := range CheckWorkerChan {
 		if !v.Success {
 			if !SMonitor.WorkerError {
-				// 告警
-				info := SMonitor.Alarm(false)
-				alarm(&service.AlarmMessage{
-					NodeName: os.Getenv(NodeNameKey),
-					Status:   "error",
-					Msg:      fmt.Sprintf("%s(ping %s 丢包)", info, v.Ip),
-				})
+				// 进入异常状态
 				go checkRecover(v.Ip, false)
 			}
 		}
@@ -148,13 +142,7 @@ func CheckPodResult(wg *sync.WaitGroup) {
 	for v := range CheckPodChan {
 		if !v.Success {
 			if !SMonitor.PodError {
-				// 告警
-				info := SMonitor.Alarm(true)
-				alarm(&service.AlarmMessage{
-					NodeName: os.Getenv(NodeNameKey),
-					Status:   "error",
-					Msg:      fmt.Sprintf("%s(ping %s 丢包)", info, v.Ip),
-				})
+				// 进入异常状态
 				go checkRecover(v.Ip, true)
 			}
 		}
@@ -178,25 +166,40 @@ func CheckSNat(wg *sync.WaitGroup) {
 
 func checkRecover(host string, isPod bool) {
 	var (
-		ok = 0
+		ok      = 0
+		fail    = 0
+		isAlarm = false
 	)
 	for {
 		log.Infof("Recover Check")
-		time.Sleep(30 * time.Second)
-		if ping(host, 5, 1, isPod, false) {
+		time.Sleep(20 * time.Second)
+		success, pingInfo := ping(host, SMonitor.Sum, SMonitor.Limit, isPod, false)
+		if success {
 			ok++
 		} else {
 			ok = 0
+			fail++
 		}
 		if ok >= SMonitor.RecoverSum {
-			info := SMonitor.Recover(isPod)
-			// 恢复, 发送回复请求
+			if isAlarm {
+				info := SMonitor.Recover(isPod)
+				// 恢复, 发送回复请求
+				alarm(&service.AlarmMessage{
+					NodeName: os.Getenv(NodeNameKey),
+					Status:   "recover",
+					Msg:      info,
+				})
+			}
+			return
+		}
+		if fail >= 4 && !isAlarm {
+			info := SMonitor.Alarm(isPod)
 			alarm(&service.AlarmMessage{
 				NodeName: os.Getenv(NodeNameKey),
-				Status:   "recover",
-				Msg:      info,
+				Status:   "error",
+				Msg:      fmt.Sprintf("%s(ping %s 丢包: %s)", info, host, pingInfo),
 			})
-			return
+			isAlarm = true
 		}
 	}
 }
@@ -241,41 +244,8 @@ func alarm(msg *service.AlarmMessage) {
 	}
 }
 
-//func ping(host string, sum, limit int, isPod, sendChan bool) bool {
-//	var (
-//		seq  int16 = 1
-//		fail       = 0
-//		ok         = true
-//	)
-//	for i := 1; i <= sum; i++ {
-//		success, _ := utils.Ping(host, seq)
-//		if !success {
-//			fail += 1
-//		}
-//		if fail >= limit {
-//			ok = false
-//			break
-//		}
-//		seq += 1
-//		time.Sleep(500 * 1000 * 1000)
-//	}
-//	if !ok && sendChan {
-//		if isPod {
-//			CheckPodChan <- &PingInfo{
-//				Success: ok,
-//				Ip:      host,
-//			}
-//		} else {
-//			CheckWorkerChan <- &PingInfo{
-//				Success: ok,
-//				Ip:      host,
-//			}
-//		}
-//	}
-//	return ok
-//}
-
-func ping(host string, sum, limit int, isPod, sendChan bool) bool {
+func ping(host string, sum, limit int, isPod, sendChan bool) (bool, string) {
+	pingInfo := ""
 	ok := true
 	pingCmd := fmt.Sprintf("ping %s -c %d", host, sum)
 	out, err := oscmd.Run("sh", "-c", pingCmd)
@@ -286,6 +256,7 @@ func ping(host string, sum, limit int, isPod, sendChan bool) bool {
 		l := strings.Split(out, "\n")
 		for _, data := range l {
 			if strings.Contains(data, "packet loss") {
+				pingInfo = data
 				ll := strings.Split(data, ",")
 				for _, lossData := range ll {
 					if strings.Contains(lossData, "packet loss") {
@@ -316,7 +287,7 @@ func ping(host string, sum, limit int, isPod, sendChan bool) bool {
 			}
 		}
 	}
-	return ok
+	return ok, pingInfo
 }
 
 func getDnsFromNode() (dnsList []string) {
