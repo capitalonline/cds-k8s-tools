@@ -191,8 +191,8 @@ func checkRecover(host string, isPod bool) {
 			fail++
 		}
 		if ok >= SMonitor.RecoverSum {
+			info := SMonitor.Recover(isPod)
 			if isAlarm {
-				info := SMonitor.Recover(isPod)
 				// 恢复, 发送回复请求
 				alarm(&service.AlarmMessage{
 					NodeName: os.Getenv(NodeNameKey),
