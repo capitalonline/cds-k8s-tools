@@ -35,26 +35,35 @@ var (
 )
 
 type Monitor struct {
-	Sum         int
-	Limit       int
-	WorkerError bool
-	PodError    bool
-	RecoverSum  int
-	Step        int
-	Host        string
+	sync.RWMutex
+	Sum             int
+	Limit           int
+	WorkerError     bool
+	PodError        bool
+	RecoverSum      int
+	Step            int
+	Host            string
+	PodPingExt      []string
+	PodPingExclude  map[string]bool
+	NodePingExt     []string
+	NodePingExclude map[string]bool
 }
 
 var SMonitor *Monitor
 
 func init() {
 	SMonitor = &Monitor{
-		Sum:         10,
-		Limit:       3,
-		WorkerError: false,
-		PodError:    false,
-		RecoverSum:  3,
-		Step:        60,
-		Host:        "",
+		Sum:             10,
+		Limit:           3,
+		WorkerError:     false,
+		PodError:        false,
+		RecoverSum:      3,
+		Step:            60,
+		Host:            "",
+		PodPingExt:      nil,
+		PodPingExclude:  make(map[string]bool),
+		NodePingExt:     nil,
+		NodePingExclude: make(map[string]bool),
 	}
 	oversea := os.Getenv(CDS_OVERSEA)
 	switch oversea {
@@ -63,7 +72,26 @@ func init() {
 	default:
 		SMonitor.Host = "www.baidu.com"
 	}
-	// SMonitor.ChangeMonitor()
+	podPingExt := conf.GetKeyString("default.snat.check.pod_ping_ext")
+	if podPingExt != "" {
+		SMonitor.PodPingExt = strings.Split(podPingExt, ",")
+	}
+	podPingExclude := conf.GetKeyString("default.snat.check.pod_ping_exclude")
+	if podPingExclude != "" {
+		for _, v := range strings.Split(podPingExclude, ",") {
+			SMonitor.PodPingExclude[v] = true
+		}
+	}
+	nodePingExt := conf.GetKeyString("default.snat.check.node_ping_ext")
+	if nodePingExt != "" {
+		SMonitor.NodePingExt = strings.Split(nodePingExt, ",")
+	}
+	nodePingExclude := conf.GetKeyString("default.snat.check.node_ping_exclude")
+	if nodePingExclude != "" {
+		for _, v := range strings.Split(nodePingExclude, ",") {
+			SMonitor.NodePingExclude[v] = true
+		}
+	}
 	log.Infof("%v", SMonitor)
 }
 
@@ -99,6 +127,34 @@ func (m *Monitor) ChangeMonitor() {
 	if r != 0 {
 		m.RecoverSum = r
 	}
+	podPingExt := conf.GetKeyString("default.snat.check.pod_ping_ext")
+	if podPingExt != "" {
+		m.PodPingExt = strings.Split(podPingExt, ",")
+	}
+	podPingExclude := conf.GetKeyString("default.snat.check.pod_ping_exclude")
+	if podPingExclude != "" {
+		temp := make(map[string]bool)
+		for _, v := range strings.Split(podPingExclude, ",") {
+			temp[v] = true
+		}
+		m.Lock()
+		m.PodPingExclude = temp
+		m.Unlock()
+	}
+	nodePingExt := conf.GetKeyString("default.snat.check.node_ping_ext")
+	if nodePingExt != "" {
+		m.NodePingExt = strings.Split(nodePingExt, ",")
+	}
+	nodePingExclude := conf.GetKeyString("default.snat.check.node_ping_exclude")
+	if nodePingExclude != "" {
+		temp := make(map[string]bool)
+		for _, v := range strings.Split(nodePingExclude, ",") {
+			temp[v] = true
+		}
+		m.Lock()
+		m.NodePingExclude = temp
+		m.Unlock()
+	}
 }
 
 func (m *Monitor) Error(isPod bool) {
@@ -133,6 +189,20 @@ func (m *Monitor) Recover(isPod bool) string {
 	return info
 }
 
+func (m *Monitor) CheckPodPingExclude(addr string) bool {
+	m.RLock()
+	defer m.RUnlock()
+	_, ok := m.PodPingExclude[addr]
+	return ok
+}
+
+func (m *Monitor) CheckNodePingExclude(addr string) bool {
+	m.RLock()
+	defer m.RUnlock()
+	_, ok := m.NodePingExclude[addr]
+	return ok
+}
+
 func CheckWorkerResult(wg *sync.WaitGroup) {
 	defer wg.Done()
 	for v := range CheckWorkerChan {
@@ -164,12 +234,35 @@ func CheckSNat(wg *sync.WaitGroup) {
 	for {
 		time.Sleep(time.Duration(SMonitor.Step) * time.Second)
 		if !SMonitor.WorkerError {
-			for _, dns := range getDnsFromNode() {
-				go ping(dns, SMonitor.Sum, SMonitor.Limit, false, true)
+			addrList := make([]string, 0)
+			addrList = append(addrList, getDnsFromNode()...)
+			addrList = append(addrList, SMonitor.NodePingExt...)
+			for _, addr := range addrList {
+				if addr == "" {
+					continue
+				}
+				if SMonitor.CheckNodePingExclude(addr) {
+					continue
+				}
+				go ping(addr, SMonitor.Sum, SMonitor.Limit, false, true)
 			}
 		}
 		if !SMonitor.PodError {
-			go ping(SMonitor.Host, SMonitor.Sum, SMonitor.Limit, true, true)
+			addrList := make([]string, 0)
+			if len(SMonitor.PodPingExt) != 0 {
+				addrList = append(addrList, SMonitor.PodPingExt...)
+			} else {
+				addrList = append(addrList, SMonitor.Host)
+			}
+			for _, addr := range addrList {
+				if addr == "" {
+					continue
+				}
+				if SMonitor.CheckPodPingExclude(addr) {
+					continue
+				}
+				go ping(addr, SMonitor.Sum, SMonitor.Limit, true, true)
+			}
 		}
 	}
 }
@@ -257,7 +350,9 @@ func alarm(msg *service.AlarmMessage) {
 func ping(host string, sum, limit int, isPod, sendChan bool) (bool, string) {
 	pingInfo := ""
 	ok := true
+
 	pingCmd := fmt.Sprintf("ping %s -c %d", host, sum)
+	log.Infof("%v", pingCmd)
 	out, err := oscmd.Run("sh", "-c", pingCmd)
 	if err != nil {
 		ok = false
