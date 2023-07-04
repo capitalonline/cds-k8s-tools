@@ -60,9 +60,9 @@ func init() {
 		RecoverSum:      3,
 		Step:            60,
 		Host:            "",
-		PodPingExt:      nil,
+		PodPingExt:      make([]string, 0),
 		PodPingExclude:  make(map[string]bool),
-		NodePingExt:     nil,
+		NodePingExt:     make([]string, 0),
 		NodePingExclude: make(map[string]bool),
 	}
 	oversea := os.Getenv(CDS_OVERSEA)
@@ -108,9 +108,13 @@ func (m *Monitor) ChangeMonitor() {
 	if r != 0 {
 		m.RecoverSum = r
 	}
+
+	// 新增检查
 	podPingExt := conf.GetKeyString("default.snat.check.pod_ping_ext")
 	if podPingExt != "" {
 		m.PodPingExt = strings.Split(podPingExt, ",")
+	} else {
+		m.PodPingExt = make([]string, 0)
 	}
 	podPingExclude := conf.GetKeyString("default.snat.check.pod_ping_exclude")
 	if podPingExclude != "" {
@@ -121,10 +125,16 @@ func (m *Monitor) ChangeMonitor() {
 		m.Lock()
 		m.PodPingExclude = temp
 		m.Unlock()
+	} else {
+		m.Lock()
+		m.PodPingExclude = make(map[string]bool)
+		m.Unlock()
 	}
 	nodePingExt := conf.GetKeyString("default.snat.check.node_ping_ext")
 	if nodePingExt != "" {
 		m.NodePingExt = strings.Split(nodePingExt, ",")
+	} else {
+		m.NodePingExt = make([]string, 0)
 	}
 	nodePingExclude := conf.GetKeyString("default.snat.check.node_ping_exclude")
 	if nodePingExclude != "" {
@@ -134,6 +144,10 @@ func (m *Monitor) ChangeMonitor() {
 		}
 		m.Lock()
 		m.NodePingExclude = temp
+		m.Unlock()
+	} else {
+		m.Lock()
+		m.NodePingExclude = make(map[string]bool)
 		m.Unlock()
 	}
 }
