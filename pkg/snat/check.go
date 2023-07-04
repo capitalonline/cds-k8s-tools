@@ -72,26 +72,7 @@ func init() {
 	default:
 		SMonitor.Host = "www.baidu.com"
 	}
-	podPingExt := conf.GetKeyString("default.snat.check.pod_ping_ext")
-	if podPingExt != "" {
-		SMonitor.PodPingExt = strings.Split(podPingExt, ",")
-	}
-	podPingExclude := conf.GetKeyString("default.snat.check.pod_ping_exclude")
-	if podPingExclude != "" {
-		for _, v := range strings.Split(podPingExclude, ",") {
-			SMonitor.PodPingExclude[v] = true
-		}
-	}
-	nodePingExt := conf.GetKeyString("default.snat.check.node_ping_ext")
-	if nodePingExt != "" {
-		SMonitor.NodePingExt = strings.Split(nodePingExt, ",")
-	}
-	nodePingExclude := conf.GetKeyString("default.snat.check.node_ping_exclude")
-	if nodePingExclude != "" {
-		for _, v := range strings.Split(nodePingExclude, ",") {
-			SMonitor.NodePingExclude[v] = true
-		}
-	}
+	SMonitor.NodePingExclude["8.8.4.4"] = true
 	log.Infof("%v", SMonitor)
 }
 
