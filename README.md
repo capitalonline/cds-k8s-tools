@@ -24,62 +24,7 @@ The support for other will be added soon.
 
 ## cds-snat-configuration upgrading v1.1.4 
 
-### STEP1：记录当前版本
-
-登录到集群master，记录cds-snat-configuration组件当前版本。应该为`v1.1.2`或`v1.1.3`版本
-
-### STEP2：组件升级
-
-升级cds-snat-configuration到v1.1.4版本
-
-```
-kubectl apply -f https://raw.githubusercontent.com/capitalonline/k8s-init/1.19.3/deploy/cds-snat-configuration_old.yaml
-```
-
-注意：`/1.19.3/`根据实际集群版本进行调整，当前有：1.20.15、1.19.3、1.17.0
-
-### STEP3：部署状态查询
-
-查看cds-snat-configuration部署状态（所有节点都会部署）
-
-```
-$ kubectl get pod -A -owide|grep cds-snat-configuration
-kube-system   cds-snat-configuration-28pcw                    1/1     Running   0          3m9s    10.244.4.7   worker001   <none>           <none>
-kube-system   cds-snat-configuration-fm9ld                    1/1     Running   0          3m4s    10.244.3.4   worker002   <none>           <none>
-kube-system   cds-snat-configuration-vx2fk                    1/1     Running   0          3m15s   10.244.2.7   master003   <none>           <none>
-kube-system   cds-snat-configuration-w6sf2                    1/1     Running   0          3m15s   10.244.0.5   master001   <none>           <none>
-kube-system   cds-snat-configuration-zs8dr                    1/1     Running   0          3m15s   10.244.1.7   master002   <none>           <none>
-
-$ kubectl get daemonset -n kube-system|grep cds-snat-configuration
-cds-snat-configuration   1         1         1       1            1           <none>                   1m
-
-
-$ kubectl logs cds-snat-configuration-fw29g -n kube-system |head -n 10
-INFO[0000] &{10 1 false false 3 60 www.google.com}      
-INFO[0000] starting read new ini conf(snat-config) from [/snat/] 
-INFO[0000] ended read new ini conf(snat-config) from([/snat/]) 
-....
-```
-
-### STEP4：异常回滚（部署成功忽略）
-
-若部署失败或者服务异常，将`https://raw.githubusercontent.com/capitalonline/k8s-init/1.19.3/deploy/cds-snat-configuration_old.yaml`文件下载，并将版本改为之前记录的版本
-
-```
-image: capitalonline/cds-snat-configuration:v1.1.2
-或
-image: capitalonline/cds-snat-configuration:v1.1.3
-```
-
-后执行
-
-```
-kubectl apply -f cds-snat-configuration_old.yaml
-```
-
-
-
-### STEP5：snat-configmap配置
+### snat-configmap配置
 
 编辑`snat-configmap`，并保存
 
