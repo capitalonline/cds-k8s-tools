@@ -106,10 +106,10 @@ data:
     snat.check.step = 60
     snat.check.sum = 10
     snat.check.limit = 3
-    # default.snat.check.pod_ping_ext = www.baidu.com,www.google.com,127.0.0.1
-    # default.snat.check.pod_ping_exclude = 8.8.4.4
-    # default.snat.check.node_ping_ext = 127.0.0.1
-    # default.snat.check.node_ping_exclude = 8.8.4.4
+    # snat.check.pod_ping_ext = www.baidu.com,www.google.com
+    # snat.check.pod_ping_exclude = 8.8.4.4
+    # snat.check.node_ping_ext = 127.0.0.1
+    # snat.check.node_ping_exclude = 8.8.4.4
 ---
 apiVersion: apps/v1
 kind: DaemonSet

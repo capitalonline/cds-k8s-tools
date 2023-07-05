@@ -116,6 +116,7 @@ func (m *Monitor) ChangeMonitor() {
 	} else {
 		m.PodPingExt = make([]string, 0)
 	}
+
 	podPingExclude := conf.GetKeyString("default.snat.check.pod_ping_exclude")
 	if podPingExclude != "" {
 		temp := make(map[string]bool)
@@ -130,12 +131,14 @@ func (m *Monitor) ChangeMonitor() {
 		m.PodPingExclude = make(map[string]bool)
 		m.Unlock()
 	}
+
 	nodePingExt := conf.GetKeyString("default.snat.check.node_ping_ext")
 	if nodePingExt != "" {
 		m.NodePingExt = strings.Split(nodePingExt, ",")
 	} else {
 		m.NodePingExt = make([]string, 0)
 	}
+
 	nodePingExclude := conf.GetKeyString("default.snat.check.node_ping_exclude")
 	if nodePingExclude != "" {
 		temp := make(map[string]bool)
