@@ -46,8 +46,6 @@ func init() {
 		AccessKeySecret = os.Getenv(accessKeySecretLiteral)
 	}
 
-	dnsDeal()
-
 	if os.Getenv("DEPLOY_TYPE") == "pre" {
 		APIHost = preApiHost
 		_, err := oscmd.Run("sh", "-c", "echo '127.0.0.1  cdsapi-gateway.gic.pre' >> /etc/hosts")

@@ -4,6 +4,7 @@ import (
 	"cds-k8s-tools/pkg/client"
 	"cds-k8s-tools/pkg/config"
 	"cds-k8s-tools/pkg/oscmd"
+	"cds-k8s-tools/pkg/service"
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"os"
@@ -82,6 +83,19 @@ func getIntervalFromConf() int {
 	return conf.GetKeyInt(refreshIntervalKey)
 }
 
+func mastGetGwFromNode() (filename, line, gw string, isNetplan bool, err error) {
+	for i := 0; i < 6; i++ {
+		filename, line, gw, isNetplan, err = getGwFromNode()
+		if err != nil {
+			time.Sleep(5 * time.Second)
+			continue
+		} else {
+			return
+		}
+	}
+	return
+}
+
 func getGwFromNode() (filename, line, gw string, isNetplan bool, err error) {
 	if _, err = oscmd.CmdToNode(CmdGetNetplanVersion); err == nil {
 		isNetplan = true
@@ -95,6 +109,11 @@ func getGwFromNode() (filename, line, gw string, isNetplan bool, err error) {
 		}
 		// /etc/netplan/ifcfg-eth1.yaml:11:      gateway4: 10.240.238.4
 		gwLineList := strings.Split(strings.TrimSpace(gwLine), ":")
+		if len(gwLineList) < 4 {
+			log.Infof("%v out %v", CmdGetNetplanGw, gwLine)
+			return "", "", "", false, fmt.Errorf("getGwFromNode fail:%v out %v", CmdGetNetplanGw, gwLine)
+		}
+
 		filename = gwLineList[0]
 		line = gwLineList[1]
 		gw = strings.TrimSpace(gwLineList[3])
@@ -105,6 +124,10 @@ func getGwFromNode() (filename, line, gw string, isNetplan bool, err error) {
 		}
 		// /etc/sysconfig/network-scripts/ifcfg-eth1:9:GATEWAY=10.240.197.8
 		gwLineList := strings.Split(strings.TrimSpace(gwLine), ":")
+		if len(gwLineList) < 2 {
+			log.Infof("%v out %v", CmdGetIfcGw, gwLine)
+			return "", "", "", false, fmt.Errorf("getGwFromNode fail:%v out %v", CmdGetIfcGw, gwLine)
+		}
 		filename = gwLineList[0]
 		line = gwLineList[1]
 		_gw := strings.Split(strings.TrimSpace(gwLineList[2]), "=")
@@ -121,9 +144,15 @@ func UpdateGw() (err error) {
 		log.Warnf("snat-ip not found in config")
 		return
 	}
-	filename, line, gw, isNetplan, err = getGwFromNode()
+	filename, line, gw, isNetplan, err = mastGetGwFromNode()
 	if err != nil {
-		return
+		// 告警
+		alarm(&service.AlarmMessage{
+			NodeName: os.Getenv(NodeNameKey),
+			Status:   "error",
+			Msg:      err.Error(),
+		})
+		return nil
 	}
 	if sNatIPNew == gw {
 		log.Infof("snat-ip(%s) was not changed", sNatIPNew)
