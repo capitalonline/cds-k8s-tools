@@ -112,9 +112,10 @@ spec:
           effect: NoSchedule
         - key: "node-role.kubernetes.io/master"
           effect: NoSchedule
+      dnsPolicy: Default
       containers:
         - name: cds-alarm-service
-          image: capitalonline/cds-alarm-service:v1.0.0
+          image: capitalonline/cds-alarm-service:v1.1.0
           imagePullPolicy: Always
           env:
             - name: NODE_NAME

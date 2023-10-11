@@ -124,7 +124,7 @@ func getGwFromNode() (filename, line, gw string, isNetplan bool, err error) {
 		}
 		// /etc/sysconfig/network-scripts/ifcfg-eth1:9:GATEWAY=10.240.197.8
 		gwLineList := strings.Split(strings.TrimSpace(gwLine), ":")
-		if len(gwLineList) < 2 {
+		if len(gwLineList) < 3 {
 			log.Infof("%v out %v", CmdGetIfcGw, gwLine)
 			return "", "", "", false, fmt.Errorf("getGwFromNode fail:%v out %v", CmdGetIfcGw, gwLine)
 		}

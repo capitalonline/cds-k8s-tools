@@ -138,7 +138,7 @@ spec:
                 configMapKeyRef:
                   name: cds-properties
                   key: oversea
-          image: capitalonline/cds-snat-configuration:v1.1.2
+          image: capitalonline/cds-snat-configuration:v1.1.5
           name: cds-snat-configuration
           # command: ["/app/cds-snat-configuration"]
           imagePullPolicy: Always
@@ -157,6 +157,12 @@ spec:
       automountServiceAccountToken: true
       hostIPC: true
       hostPID: true
+      tolerations:
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/master
+          operator: Exists
+        - effect: NoSchedule
+          key: node-role.cck.net/infra
       restartPolicy: Always
       schedulerName: default-scheduler
       securityContext: {}
