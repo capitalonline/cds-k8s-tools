@@ -56,7 +56,7 @@ func init() {
 }
 
 func getNodeSNatRole() (sNatRole string) {
-	v1node := client.GetNode(nodeName)
+	v1node := client.Sa.GetNode(nodeName)
 	if sip, found := v1node.Annotations[sNatKey]; found {
 		if sip == "" {
 			sNatRole = AnnotationSNatDefaultValue

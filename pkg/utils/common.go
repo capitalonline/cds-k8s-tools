@@ -15,6 +15,7 @@ const (
 	accessKeyIdLiteral     = "CDS_ACCESS_KEY_ID"
 	accessKeySecretLiteral = "CDS_ACCESS_KEY_SECRET"
 	cckProductType         = "cck"
+	PaasProductType        = "lb"
 	version                = "2019-08-08"
 	signatureVersion       = "1.0"
 	signatureMethod        = "HMAC-SHA1"
@@ -22,7 +23,10 @@ const (
 )
 
 const (
-	SendAlarm = "SendAlarm"
+	SendAlarm                    = "SendAlarm"
+	DescribeHaInstance           = "DescribeLoadBalancers"
+	DescribeLoadBalancerStrategy = "DescribeLoadBalancerStrategys"
+	ModifyLoadBalancerStrategy   = "ModifyLoadBalancerStrategys"
 )
 
 var (
@@ -41,9 +45,15 @@ func init() {
 	//}
 	if AccessKeyID == "" {
 		AccessKeyID = os.Getenv(accessKeyIdLiteral)
+
+		// 测试，上线后删除
+		AccessKeyID = "dcf62a6ede7011edab3adef36dfc6e1d"
 	}
 	if AccessKeySecret == "" {
 		AccessKeySecret = os.Getenv(accessKeySecretLiteral)
+
+		// 测试，上线后删除
+		AccessKeySecret = "5407e3dd33fe6392c9affc58036362f7"
 	}
 
 	if os.Getenv("DEPLOY_TYPE") == "pre" {

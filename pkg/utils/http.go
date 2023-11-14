@@ -1,19 +1,20 @@
 package utils
 
 import (
+	"bytes"
 	"crypto/hmac"
 	"crypto/sha1"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
+	log "github.com/sirupsen/logrus"
 	"io"
 	"net/http"
 	"net/url"
 	"sort"
 	"strings"
 	"time"
-
-	"github.com/google/uuid"
-	log "github.com/sirupsen/logrus"
 )
 
 type CloudRequest struct {
@@ -28,6 +29,10 @@ func NewCCKRequest(action, method string, params map[string]string, body io.Read
 	return NewRequest(action, method, params, cckProductType, body)
 }
 
+func NewPaasRequest(action, method string, params map[string]string, body io.Reader) (*CloudRequest, error) {
+	return NewRequest(action, method, params, PaasProductType, body)
+}
+
 func NewRequest(action, method string, params map[string]string, productType string, body io.Reader) (*CloudRequest, error) {
 	method = strings.ToUpper(method)
 	req := &CloudRequest{
@@ -40,11 +45,48 @@ func NewRequest(action, method string, params map[string]string, productType str
 	return req, nil
 }
 
+func NewOpenapiRequest(action, method string, params map[string]string, body, resp interface{}) (code int, err error) {
+	var (
+		response = &http.Response{}
+		respBody []byte
+		req      = &CloudRequest{}
+	)
+	if method == http.MethodGet {
+		req, _ = NewPaasRequest(action, method, params, nil)
+	} else {
+		reqBytes, _ := json.Marshal(body)
+		req, _ = NewPaasRequest(action, method, nil, bytes.NewReader(reqBytes))
+	}
+
+	response, err = DoOpenApiRequest(req)
+	if err != nil {
+		return
+	}
+
+	defer response.Body.Close()
+	respBody, err = io.ReadAll(response.Body)
+	if err != nil {
+		return
+	}
+
+	code = response.StatusCode
+	if len(respBody) != 0 && resp != nil {
+		err = json.Unmarshal(respBody, resp)
+		if err != nil {
+			if len(respBody) > 1000 {
+				return code, fmt.Errorf("%v", string(respBody[:200]))
+			} else {
+				return code, fmt.Errorf("%v", string(respBody))
+			}
+		}
+	}
+	return
+}
+
 func DoOpenApiRequest(req *CloudRequest) (resp *http.Response, err error) {
 	if !IsAccessKeySet() {
 		return nil, fmt.Errorf("AccessKeyID or accessKeySecret is empty")
 	}
-
 	reqUrl := getUrl(req)
 	sendRequest, err := http.NewRequest(req.method, reqUrl, req.body)
 	if err != nil {
