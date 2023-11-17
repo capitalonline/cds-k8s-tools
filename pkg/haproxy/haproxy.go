@@ -95,7 +95,7 @@ func CheckHaProxyInstance(wg *sync.WaitGroup) {
 				newTimer.Reset(time.Duration(i) * time.Second)
 			}
 		case <-newTimer.C:
-			NewEventHandle("timer")
+			HaEventHandle("timer")
 		}
 	}
 }
@@ -119,7 +119,7 @@ func CheckNodePod(wg *sync.WaitGroup) {
 				newTimer.Reset(time.Duration(i) * time.Second)
 			}
 		case <-newTimer.C:
-			NewEventHandle("timer")
+			NodePodEventHandle("timer")
 		}
 	}
 }
