@@ -103,7 +103,7 @@ type HaproxyConfig struct {
 	ServiceName  string `json:"service_name"`
 	MaxConn      int    `json:"max_conn"`
 	NodePort     int    `json:"node_port"`
-	ListenerPort int    `json:"listener_port"`
+	ListenerPort []int  `json:"listener_ports"`
 }
 
 func main1() {

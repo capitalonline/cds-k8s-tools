@@ -27,7 +27,7 @@ type HaConfigInfo struct {
 	ServiceName  string `json:"service_name"`
 	MaxConn      int    `json:"max_conn"`
 	NodePort     int    `json:"node_port"`
-	ListenerPort int    `json:"listener_port"`
+	ListenerPort []int  `json:"listener_ports"`
 }
 
 func UpdateHaproxyInstance() (err error) {
@@ -101,8 +101,10 @@ func ModifyHaproxyConfig(instanceId string, haInfo HaConfigInfo, newNodeIpList [
 
 		// Generate the latest update haproxy params
 		for _, policy := range HaInstancePolicy.HttpListeners {
-			if policy.ListenerPort == haInfo.ListenerPort {
-				policy.BackendServer = newBackendServers
+			for _, port := range haInfo.ListenerPort {
+				if policy.ListenerPort == port {
+					policy.BackendServer = newBackendServers
+				}
 			}
 			ChangeNewTcpListeners = append(ChangeNewTcpListeners, policy)
 		}
