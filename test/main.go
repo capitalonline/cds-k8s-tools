@@ -106,8 +106,9 @@ type HaproxyConfig struct {
 	ListenerPort []int  `json:"listener_ports"`
 }
 
-func main1() {
-	configMap, err := GetConfigMapByName("lb2pod", "kube-system")
+func main() {
+	// generate configmap from json file: kubectl create configmap my-cm  --from-file=haproxy_instances --namespace=kube-system
+	configMap, err := GetConfigMapByName("my-cm", "kube-system")
 	if err != nil {
 		return
 	}
@@ -142,7 +143,7 @@ func main2() {
 	}
 }
 
-func main() {
+func main1() {
 	podList := GetPodByServiceName("nginx-svc", "test-reload-lb")
 	fmt.Printf("podList: %d", len(podList.Items))
 	for _, node := range podList.Items {
