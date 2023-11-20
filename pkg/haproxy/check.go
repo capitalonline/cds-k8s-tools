@@ -49,6 +49,7 @@ func ModifyHaproxyConfig(instanceId string, haInfo HaConfigInfo, newNodeIpList [
 	if err != nil {
 		panic(err)
 	}
+
 	// all user only uses http policies
 	httpListeners := HaInstancePolicy.HttpListeners
 	if len(httpListeners) == 0 {
@@ -154,7 +155,7 @@ func CheckClusterIpNodeByHaConfig(config HaConfigInfo) error {
 	}
 
 	// search haproxy instance describe info by ha tag
-	req := map[string]string{"TagName": "reload_lb"}
+	req := map[string]string{"TagName": config.LbTag}
 	haproxyInstances, err := api.DescribeHaproxyInstancesByTag(req)
 	if err != nil {
 		return err
@@ -164,6 +165,8 @@ func CheckClusterIpNodeByHaConfig(config HaConfigInfo) error {
 	for _, instance := range haproxyInstances {
 		ModifyHaproxyConfig(instance.InstanceUuid, config, workerIpList, IpPodNumMap)
 	}
+
+	log.Infof("no search haproxy instance by tagName: %s", config.LbTag)
 	return nil
 }
 
