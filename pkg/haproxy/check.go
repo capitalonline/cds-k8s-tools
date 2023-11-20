@@ -43,6 +43,8 @@ func ModifyHaproxyConfig(instanceId string, haInfo HaConfigInfo, newNodeIpList [
 		ChangeNewTcpListeners []api.HttpListener
 	)
 
+	log.Infof("cluster current node ip: %+v", newNodeIpList)
+
 	req := map[string]string{"InstanceUuid": instanceId}
 	HaInstancePolicy, err := api.DescribeLoadBalancerStrategy(req)
 	if err != nil {
@@ -67,6 +69,9 @@ func ModifyHaproxyConfig(instanceId string, haInfo HaConfigInfo, newNodeIpList [
 		}
 	}
 
+	log.Infof("old nodeIp podNum map: %+v", OldNodeIpPodMap)
+	log.Infof("new nodeIp podNum map: %+v", NewNodeIpPodMap)
+
 	for _, nodeIp := range newNodeIpList {
 		newBackendServers = append(newBackendServers, api.BackendServer{
 			IP:   nodeIp,
@@ -76,6 +81,8 @@ func ModifyHaproxyConfig(instanceId string, haInfo HaConfigInfo, newNodeIpList [
 			MaxConn: haInfo.MaxConn,
 		})
 	}
+	log.Infof("old haproxy backend instance servers: %+v", oldBackendServers)
+	log.Infof("new haproxy backend instance servers: %+v", newBackendServers)
 
 	if len(oldBackendServers) == len(newBackendServers) {
 		for _, newServerIp := range newNodeIpList {
@@ -86,6 +93,7 @@ func ModifyHaproxyConfig(instanceId string, haInfo HaConfigInfo, newNodeIpList [
 				log.Infof("new backend server exists, send task to update Haproxy policy.")
 				break
 			}
+
 			// Check whether the weight of the backend server changes
 			if NewNodeIpPodMap[newServerIp] != OldNodeIpPodMap[newServerIp] {
 				UseOldHaConfig = false
@@ -99,8 +107,6 @@ func ModifyHaproxyConfig(instanceId string, haInfo HaConfigInfo, newNodeIpList [
 	}
 
 	if !UseOldHaConfig {
-		log.Infof("begin to update haproxy policy, oldBackendServer: %+v, newBackendServer: %+v", oldBackendServers, newBackendServers)
-
 		// Generate the latest update haproxy params
 		for _, policy := range HaInstancePolicy.HttpListeners {
 			for _, port := range haInfo.ListenerPort {
@@ -111,7 +117,7 @@ func ModifyHaproxyConfig(instanceId string, haInfo HaConfigInfo, newNodeIpList [
 			ChangeNewTcpListeners = append(ChangeNewTcpListeners, policy)
 		}
 		HaInstancePolicy.HttpListeners = ChangeNewTcpListeners
-		log.Infof("latest update haproxxy policy params: %+v", HaInstancePolicy)
+		log.Infof("****** begin to update harproxy instance, latest policy params: %+v", HaInstancePolicy)
 
 		// send to task for update haproxy policy
 		modifyParams := api.ModifyHaStrategyReq{
