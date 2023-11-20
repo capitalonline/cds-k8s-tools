@@ -142,7 +142,7 @@ func CheckClusterIpNodeByHaConfig(config HaConfigInfo) error {
 	}
 
 	// Count the number of Pods on each worker
-	var IpPodNumMap map[string]int
+	IpPodNumMap := make(map[string]int)
 	podsByServiceName := client.Sa.GetPodByServiceName(config.ServiceName, config.NameSpace)
 	for _, pod := range podsByServiceName.Items {
 		nodeIp := pod.Status.HostIP

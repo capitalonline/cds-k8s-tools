@@ -28,5 +28,6 @@ RUN chmod -R 777 /app/
 ENTRYPOINT /app/${TO_BIN_FILE}
 
 # docker build  --build-arg bin_file=cds-snat-configuration -t cds-snat-configuration .
+# docker build --build-arg bin_file=cds-ha-configuration -t cds-ha-configuration .
 # docker tag cds-snat-configuration:latest capitalonline/cds-snat-configuration:latest
 # docker push capitalonline/cds-snat-configuration:latest
