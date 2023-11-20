@@ -49,13 +49,15 @@ func ModifyHaproxyConfig(instanceId string, haInfo HaConfigInfo, newNodeIpList [
 	req := map[string]string{"InstanceUuid": instanceId}
 	HaInstancePolicy, err := api.DescribeLoadBalancerStrategy(req)
 	if err != nil {
-		panic(err)
+		log.Errorf("describeLoadBalancerStrategy failed: %s", err)
+		return
 	}
 
 	// all user only uses http policies
 	httpListeners := HaInstancePolicy.HttpListeners
 	if len(httpListeners) == 0 {
-		panic(fmt.Errorf("user instance does not have an http type policy"))
+		log.Errorf("haproxy instance don't have http type policy")
+		return
 	}
 
 	// compute old backend for NodeIpMap
@@ -114,7 +116,7 @@ func ModifyHaproxyConfig(instanceId string, haInfo HaConfigInfo, newNodeIpList [
 			ChangeNewTcpListeners = append(ChangeNewTcpListeners, policy)
 		}
 		HaInstancePolicy.HttpListeners = ChangeNewTcpListeners
-		log.Infof("****** begin to update harproxy instance, latest policy params: %+v", HaInstancePolicy)
+		log.Infof("***begin to update harproxy instance, latest policy params: %+v", HaInstancePolicy)
 
 		// send to task for update haproxy policy
 		modifyParams := api.ModifyHaStrategyReq{
@@ -123,12 +125,13 @@ func ModifyHaproxyConfig(instanceId string, haInfo HaConfigInfo, newNodeIpList [
 		}
 		res, err := api.ModifyLoadBalancerStrategy(modifyParams)
 		if err != nil {
-			panic(err)
+			log.Errorf("send ModifyLoadBalancerStrategy task failed: %s", err)
+			return
 		}
 		log.Infof("taskId: %d sent successfully", res.TaskId)
 		time.Sleep(2 * time.Second)
 	}
-	log.Infof("Continue, there is no need to update the backend server by haInstanceId: %s", instanceId)
+	log.Infof("***no need to update the backend server by haInstanceId: %s", instanceId)
 }
 
 func CheckClusterIpNodeByHaConfig(config HaConfigInfo) error {
@@ -148,6 +151,10 @@ func CheckClusterIpNodeByHaConfig(config HaConfigInfo) error {
 	// Count the number of Pods on each worker
 	IpPodNumMap := make(map[string]int64)
 	podsByServiceName := client.Sa.GetPodByServiceName(config.ServiceName, config.NameSpace)
+	if podsByServiceName == nil {
+		log.Infof("there is no pod by service name %s in namespace %s", config.NameSpace, config.ServiceName)
+		return nil
+	}
 	for _, pod := range podsByServiceName.Items {
 		nodeIp := pod.Status.HostIP
 		if _, ok := IpPodNumMap[nodeIp]; ok {
@@ -168,7 +175,6 @@ func CheckClusterIpNodeByHaConfig(config HaConfigInfo) error {
 	for _, instance := range haproxyInstances {
 		ModifyHaproxyConfig(instance.InstanceUuid, config, workerIpList, IpPodNumMap)
 	}
-
 	log.Infof("no search haproxy instance by tagName: %s", config.LbTag)
 	return nil
 }
@@ -176,6 +182,10 @@ func CheckClusterIpNodeByHaConfig(config HaConfigInfo) error {
 func UpdateNodePod() error {
 	// 1. get haproxy instance by configmap
 	configMap := client.Sa.GetConfigMapByName(CustomerConfigMapName, DefaultNameSpace)
+	if configMap == nil {
+		log.Infof("there is no configmap by name %s in namespace %s", CustomerConfigMapName, DefaultNameSpace)
+		return nil
+	}
 	dataMapStr, ok := configMap.Data[ConfigMapDataKey]
 	if !ok {
 		return fmt.Errorf("failed to get configmap")
