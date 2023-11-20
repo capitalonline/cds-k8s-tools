@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"github.com/gogf/gf/v2/util/gconv"
 	log "github.com/sirupsen/logrus"
-	v1 "k8s.io/api/core/v1"
 	"strconv"
 	"time"
 )
@@ -138,25 +137,27 @@ func CheckClusterIpNodeByHaConfig(config HaConfigInfo) error {
 	log.Infof("begin to search haproxy instances by tag: %s", config.LbTag)
 
 	// Count the number of existing workers
-	var workerIpList []string
-	workers := client.Sa.GetAllWorkerNode(ComputeNodeLabel)
-	for _, node := range workers.Items {
-		for _, address := range node.Status.Addresses {
-			if address.Type == v1.NodeInternalIP {
-				workerIpList = append(workerIpList, address.Address)
-			}
-		}
-	}
+	// var workerIpList []string
+	// workers := client.Sa.GetAllWorkerNode(ComputeNodeLabel)
+	// for _, node := range workers.Items {
+	// 	for _, address := range node.Status.Addresses {
+	// 		if address.Type == v1.NodeInternalIP {
+	// 			workerIpList = append(workerIpList, address.Address)
+	// 		}
+	// 	}
+	// }
 
 	// Count the number of Pods on each worker
+	var workerIpList []string
 	IpPodNumMap := make(map[string]int64)
+
 	podsByServiceName := client.Sa.GetPodByServiceName(config.ServiceName, config.NameSpace)
 	if podsByServiceName == nil {
-		log.Infof("there is no pod by service name %s in namespace %s", config.NameSpace, config.ServiceName)
 		return nil
 	}
 	for _, pod := range podsByServiceName.Items {
 		nodeIp := pod.Status.HostIP
+		workerIpList = append(workerIpList, nodeIp)
 		if _, ok := IpPodNumMap[nodeIp]; ok {
 			IpPodNumMap[nodeIp]++
 		} else {
