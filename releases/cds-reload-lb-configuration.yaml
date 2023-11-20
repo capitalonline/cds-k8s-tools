@@ -94,7 +94,7 @@ subjects:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: reload-lb-configmap
+  name: reload-lb-config
   namespace: kube-system
 data:
   reload-lb-config: |+
@@ -108,12 +108,13 @@ metadata:
   name: cds-reload-lb-configuration
   namespace: kube-system
 spec:
+  serviceName: reload-lb-svc
+  replicas: 1
   selector:
     matchLabels:
       cds-app: cds-reload-lb-configuration
   template:
     metadata:
-      creationTimestamp: null
       labels:
         cds-app: cds-reload-lb-configuration
     spec:
@@ -139,12 +140,12 @@ spec:
                 secretKeyRef:
                   name: cck-secrets
                   key: access_key_secret
-          image: capitalonline/cds-snat-configuration:v1.1.5
+          image: registry-bj.capitalonline.net/test/cds-ha-configuration:v1.0
           name: cds-reload-lb-configuration
           imagePullPolicy: Always
           volumeMounts:
             - mountPath: /reload-lb/
-              name: reload-config
+              name: reload-lb-config
       tolerations:
         - effect: NoSchedule
           key: node-role.kubernetes.io/master

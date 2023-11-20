@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	CustomerConfigMapName = "reload-lb-config"
+	CustomerConfigMapName = "haproxy-config"
 	ConfigMapDataKey      = "haproxy-instances"
 	DefaultNameSpace      = "kube-system"
 	ComputeNodeLabel      = "node-role.kubernetes.io/compute"
