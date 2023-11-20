@@ -12,7 +12,8 @@ import (
 )
 
 const (
-	CustomerConfigMapName = "haproxy-config"
+	CustomerConfigMapName = "reload-lb-config"
+	ConfigMapDataKey      = "haproxy-instances"
 	DefaultNameSpace      = "kube-system"
 	ComputeNodeLabel      = "node-role.kubernetes.io/compute"
 )
@@ -167,7 +168,7 @@ func CheckClusterIpNodeByHaConfig(config HaConfigInfo) error {
 func UpdateNodePod() error {
 	// 1. get haproxy instance by configmap
 	configMap := client.Sa.GetConfigMapByName(CustomerConfigMapName, DefaultNameSpace)
-	dataMapStr, ok := configMap.Data["haproxy_instances"]
+	dataMapStr, ok := configMap.Data[ConfigMapDataKey]
 	if !ok {
 		return fmt.Errorf("failed to get configmap")
 	}

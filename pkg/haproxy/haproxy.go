@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	ConfigFileName = "haproxy-config"
-	ConfigDir      = "/haproxy/"
+	ConfigFileName = "reload-lb-config"
+	ConfigDir      = "/reload-lb/"
 	ConfigFmtType  = "ini"
 	HaPeriod       = "haproxy.refresh.period"
 	PodNodePeriod  = "node.refresh.period"
@@ -33,7 +33,7 @@ func ReloadIntervalFromConf(key string) int {
 	return conf.GetKeyInt(key)
 }
 
-func NewEventHandle(name string) {
+func AllEventHandle(name string) {
 	HaEventHandle(name)
 	NodePodEventHandle(name)
 }
@@ -129,7 +129,7 @@ func Run() {
 	HaEventHandle(ConfigFileName)
 	NodePodEventHandle(ConfigFileName)
 
-	conf.OnConfChange(NewEventHandle)
+	conf.OnConfChange(AllEventHandle)
 	conf.WatchConf()
 	wg := new(sync.WaitGroup)
 	wg.Add(2)
