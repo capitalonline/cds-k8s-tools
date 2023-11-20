@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	ConfigFileName = "reload-lb-config"
+	ConfigFileName = "reload-lb-system-config"
 	ConfigDir      = "/reload-lb/"
 	ConfigFmtType  = "ini"
 	HaPeriod       = "haproxy.refresh.period"

@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	CustomerConfigMapName = "haproxy-config"
+	CustomerConfigMapName = "customer-haproxy-config"
 	ConfigMapDataKey      = "haproxy-instances"
 	DefaultNameSpace      = "kube-system"
 	ComputeNodeLabel      = "node-role.kubernetes.io/compute"
@@ -128,7 +128,7 @@ func ModifyHaproxyConfig(instanceId string, haInfo HaConfigInfo, newNodeIpList [
 }
 
 func CheckClusterIpNodeByHaConfig(config HaConfigInfo) error {
-	log.Infof("begin to check haproxy by tag: %s", config.LbTag)
+	log.Infof("begin to search haproxy instances by tag: %s", config.LbTag)
 
 	// Count the number of existing workers
 	var workerIpList []string
@@ -140,6 +140,7 @@ func CheckClusterIpNodeByHaConfig(config HaConfigInfo) error {
 			}
 		}
 	}
+
 	// Count the number of Pods on each worker
 	var IpPodNumMap map[string]int
 	podsByServiceName := client.Sa.GetPodByServiceName(config.ServiceName, config.NameSpace)
@@ -151,6 +152,7 @@ func CheckClusterIpNodeByHaConfig(config HaConfigInfo) error {
 			IpPodNumMap[nodeIp] = 1
 		}
 	}
+
 	// search haproxy instance describe info by ha tag
 	req := map[string]string{"TagName": "reload_lb"}
 	haproxyInstances, err := api.DescribeHaproxyInstancesByTag(req)

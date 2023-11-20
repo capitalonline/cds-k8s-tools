@@ -4,78 +4,18 @@ kind: ServiceAccount
 metadata:
   name: cds-reload-lb-configuration-sa
   namespace: kube-system
-
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  namespace: kube-system
   name: cds-reload-lb-configuration-role
 rules:
-  - apiGroups:
-      - ""
-    resources:
-      - events
-    verbs:
-      - create
-      - patch
-      - update
-  - apiGroups:
-      - ""
-    resources:
-      - nodes
-    verbs:
-      - '*'
-  - apiGroups:
-      - ""
-    resources:
-      - nodes/status
-    verbs:
-      - patch
-  - apiGroups:
-      - ""
-    resources:
-      - services
-    verbs:
-      - list
-      - patch
-      - update
-      - watch
-  - apiGroups:
-      - ""
-    resources:
-      - services/status
-    verbs:
-      - list
-      - patch
-      - update
-      - watch
-  - apiGroups:
-      - ""
-    resources:
-      - serviceaccounts
-    verbs:
-      - create
-  - apiGroups:
-      - ""
-    resources:
-      - persistentvolumes
-    verbs:
-      - get
-      - list
-      - update
-      - watch
-  - apiGroups:
-      - ""
-    resources:
-      - endpoints
-    verbs:
-      - create
-      - get
-      - list
-      - watch
-      - update
-
+  - apiGroups: [""]
+    resources: ["*"]
+    verbs: ["*"]
+  - apiGroups: ["extensions", "apps"]
+    resources: ["*"]
+    verbs: ["*"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -84,20 +24,19 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: cds-reload-lb-configuration-cluster-role
+  name: cds-reload-lb-configuration-role
 subjects:
   - kind: ServiceAccount
     name: cds-reload-lb-configuration-sa
     namespace: kube-system
-
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: reload-lb-config
+  name: reload-lb-system-config
   namespace: kube-system
 data:
-  reload-lb-config: |+
+  reload-lb-system-config: |+
     [default]
     haproxy.refresh.period = 300
     nodePod.refresh.period = 30
@@ -118,6 +57,7 @@ spec:
       labels:
         cds-app: cds-reload-lb-configuration
     spec:
+      serviceAccountName: cds-reload-lb-configuration-sa
       containers:
         - env:
             - name: CDS_OVERSEA
@@ -140,12 +80,12 @@ spec:
                 secretKeyRef:
                   name: cck-secrets
                   key: access_key_secret
-          image: registry-bj.capitalonline.net/test/cds-ha-configuration:v1.0
+          image: registry-bj.capitalonline.net/test/cds-ha-configuration:v1.1
           name: cds-reload-lb-configuration
           imagePullPolicy: Always
           volumeMounts:
             - mountPath: /reload-lb/
-              name: reload-lb-config
+              name: reload-lb-system-config
       tolerations:
         - effect: NoSchedule
           key: node-role.kubernetes.io/master
@@ -156,5 +96,5 @@ spec:
       volumes:
         - configMap:
             defaultMode: 420
-            name: reload-lb-config
-          name: reload-lb-config
+            name: reload-lb-system-config
+          name: reload-lb-system-config
