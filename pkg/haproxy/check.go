@@ -157,10 +157,10 @@ func CheckClusterIpNodeByHaConfig(config HaConfigInfo) error {
 	}
 	for _, pod := range podsByServiceName.Items {
 		nodeIp := pod.Status.HostIP
-		workerIpList = append(workerIpList, nodeIp)
 		if _, ok := IpPodNumMap[nodeIp]; ok {
 			IpPodNumMap[nodeIp]++
 		} else {
+			workerIpList = append(workerIpList, nodeIp)
 			IpPodNumMap[nodeIp] = 1
 		}
 	}
