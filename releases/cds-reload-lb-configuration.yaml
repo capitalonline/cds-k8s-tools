@@ -39,7 +39,7 @@ data:
   reload-lb-system-config: |+
     [default]
     haproxy.refresh.period = 300
-    nodePod.refresh.period = 30
+    node.refresh.period = 30
 ---
 apiVersion: apps/v1
 kind: StatefulSet

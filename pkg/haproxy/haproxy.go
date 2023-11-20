@@ -49,6 +49,7 @@ func NodePodEventHandle(name string) {
 	NodeRefreshKey := fmt.Sprintf("default.%s", PodNodePeriod)
 	newNodePeriod := ReloadIntervalFromConf(NodeRefreshKey)
 	if newNodePeriod > 0 && newNodePeriod != NodeRefreshInterval {
+		NodeRefreshInterval = newNodePeriod
 		log.Infof("updated %s = %d", NodeRefreshKey, newNodePeriod)
 		NodeRefreshCh <- newNodePeriod
 	} else if newNodePeriod == 0 {
@@ -68,6 +69,7 @@ func HaEventHandle(name string) {
 	HaRefreshKey := fmt.Sprintf("default.%s", HaPeriod)
 	newHaPeriod := ReloadIntervalFromConf(HaRefreshKey)
 	if newHaPeriod > 0 && newHaPeriod != HaRefreshInterval {
+		HaRefreshInterval = newHaPeriod
 		log.Infof("updated %s = %d", HaRefreshKey, newHaPeriod)
 		HaRefreshCh <- newHaPeriod
 	} else if newHaPeriod == 0 {
