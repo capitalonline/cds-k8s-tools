@@ -8,6 +8,7 @@ import (
 	"github.com/gogf/gf/v2/util/gconv"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
+	"strconv"
 	"time"
 )
 
@@ -35,10 +36,10 @@ func UpdateHaproxyInstance() (err error) {
 	return
 }
 
-func ModifyHaproxyConfig(instanceId string, haInfo HaConfigInfo, newNodeIpList []string, NewNodeIpPodMap map[string]int) {
+func ModifyHaproxyConfig(instanceId string, haInfo HaConfigInfo, newNodeIpList []string, NewNodeIpPodMap map[string]int64) {
 
 	var (
-		UseOldHaConfig        bool = true
+		UseOldHaConfig        = true
 		newBackendServers     []api.BackendServer
 		ChangeNewTcpListeners []api.HttpListener
 	)
@@ -58,15 +59,11 @@ func ModifyHaproxyConfig(instanceId string, haInfo HaConfigInfo, newNodeIpList [
 	}
 
 	// compute old backend for NodeIpMap
-	OldNodeIpPodMap := make(map[string]int)
+	OldNodeIpPodMap := make(map[string]int64)
 	oldBackendServers := httpListeners[0].BackendServer
 	for _, backendServer := range oldBackendServers {
-		serverIp := backendServer.IP
-		if _, ok := OldNodeIpPodMap[serverIp]; ok {
-			OldNodeIpPodMap[serverIp]++
-		} else {
-			OldNodeIpPodMap[serverIp] = 1
-		}
+		num, _ := strconv.ParseInt(backendServer.Weight, 10, 64)
+		OldNodeIpPodMap[backendServer.IP] = num
 	}
 
 	log.Infof("old nodeIp podNum map: %+v", OldNodeIpPodMap)
@@ -149,7 +146,7 @@ func CheckClusterIpNodeByHaConfig(config HaConfigInfo) error {
 	}
 
 	// Count the number of Pods on each worker
-	IpPodNumMap := make(map[string]int)
+	IpPodNumMap := make(map[string]int64)
 	podsByServiceName := client.Sa.GetPodByServiceName(config.ServiceName, config.NameSpace)
 	for _, pod := range podsByServiceName.Items {
 		nodeIp := pod.Status.HostIP
