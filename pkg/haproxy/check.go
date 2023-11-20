@@ -40,7 +40,6 @@ func ModifyHaproxyConfig(instanceId string, haInfo HaConfigInfo, newNodeIpList [
 	var (
 		UseOldHaConfig        bool = true
 		newBackendServers     []api.BackendServer
-		OldNodeIpPodMap       map[string]int
 		ChangeNewTcpListeners []api.HttpListener
 	)
 
@@ -57,6 +56,7 @@ func ModifyHaproxyConfig(instanceId string, haInfo HaConfigInfo, newNodeIpList [
 	}
 
 	// compute old backend for NodeIpMap
+	OldNodeIpPodMap := make(map[string]int)
 	oldBackendServers := httpListeners[0].BackendServer
 	for _, backendServer := range oldBackendServers {
 		serverIp := backendServer.IP
