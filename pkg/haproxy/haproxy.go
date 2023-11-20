@@ -48,7 +48,7 @@ func NodePodEventHandle(name string) {
 	// check NodePod Period Second
 	NodeRefreshKey := fmt.Sprintf("default.%s", PodNodePeriod)
 	newNodePeriod := ReloadIntervalFromConf(NodeRefreshKey)
-	if newNodePeriod > 0 && newNodePeriod != HaRefreshInterval {
+	if newNodePeriod > 0 && newNodePeriod != NodeRefreshInterval {
 		log.Infof("updated %s = %d", NodeRefreshKey, newNodePeriod)
 		NodeRefreshCh <- newNodePeriod
 	} else if newNodePeriod == 0 {
@@ -115,7 +115,7 @@ func CheckNodePod(wg *sync.WaitGroup) {
 			}
 			if i > 0 {
 				log.Infof("updating the timer new NodePod interval for %d", i)
-				HaRefreshInterval = i
+				NodeRefreshInterval = i
 				newTimer.Reset(time.Duration(i) * time.Second)
 			}
 		case <-newTimer.C:
