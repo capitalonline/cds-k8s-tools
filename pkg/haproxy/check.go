@@ -62,6 +62,8 @@ func UpdateHaproxyInstance() error {
 		return nil
 	}
 
+	// verify customer params tagName and ServiceName
+
 	for _, Config := range CustomerHaConfigs.Instances {
 		log.Infof("begin check haproxy instance by serviceName %s", Config.ServiceName)
 
@@ -212,7 +214,7 @@ func ModifyHaproxyConfig(instanceId string, haInfo HaConfigInfo, newNodeIpList [
 		// cache can be updated only after the task is successfully
 		InstanceIdPolicyMap.Store(instanceId, InstancePolicy)
 
-		log.Infof("taskId: %d sent successfully", res.TaskId)
+		log.Infof("taskId: %s sent successfully", res.TaskId)
 		return
 	}
 
@@ -273,7 +275,6 @@ func CheckClusterIpNodeByHaConfig(config HaConfigInfo) error {
 		ModifyHaproxyConfig(instanceId, config, workerIpList, IpPodNumMap)
 	}
 
-	log.Infof("no search haproxy instance by tagName: %s", config.LbTag)
 	return nil
 }
 
