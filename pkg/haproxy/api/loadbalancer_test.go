@@ -20,7 +20,7 @@ func TestDescribeHaInfo(t *testing.T) {
 
 func TestDescribeLoadBalancerStrategy(t *testing.T) {
 	params := map[string]string{
-		"InstanceUuid": "0ab23f0a-8520-11ee-bcd7-c2d101824e3b",
+		"InstanceUuid": "f0fdb64c-8877-11ee-8ce2-b6c758585864",
 	}
 	out, err := DescribeLoadBalancerStrategy(params)
 	if err != nil {
