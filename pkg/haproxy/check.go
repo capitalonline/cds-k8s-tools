@@ -62,12 +62,17 @@ func UpdateHaproxyInstance() error {
 	}
 
 	for _, Config := range CustomerHaConfigs.Instances {
-		log.Infof("begin check serviceName %s", Config.ServiceName)
+		log.Infof("begin check haproxy instance by serviceName %s", Config.ServiceName)
 
 		req := map[string]string{"TagName": Config.LbTag}
 		Instances, err := api.DescribeHaproxyInstancesByTag(req)
 		if err != nil {
 			return err
+		}
+
+		if len(Instances) == 0 {
+			log.Infof("not found haproxy instances by tag name %s, serviceName %s", Config.LbTag, Config.ServiceName)
+			continue
 		}
 
 		var NewSvcInstancesIds []string
@@ -89,9 +94,10 @@ func UpdateHaproxyInstance() error {
 			}
 
 		}
-		log.Infof("OldInstanceIds by %s was blank, insert NewSvcInstancesIds into cache", Config.ServiceName)
+		log.Infof("OldInstanceIds by %s was blank, insert NewSvcInstancesIds into SvcNameInstanceIdsMap", Config.ServiceName)
 		SvcNameInstanceIdsMap.Store(Config.ServiceName, NewSvcInstancesIds)
 	}
+
 	return nil
 }
 
