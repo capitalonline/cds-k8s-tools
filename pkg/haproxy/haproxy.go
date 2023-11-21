@@ -58,7 +58,6 @@ func NodePodEventHandle(name string) {
 }
 
 func HaEventHandle(name string) {
-
 	log.Infof("starting event for check haproxy instance by %s", name)
 	if err := UpdateHaproxyInstance(); err != nil {
 		log.Fatal(err)

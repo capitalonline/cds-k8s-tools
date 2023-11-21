@@ -21,7 +21,7 @@ func (sa *ServiceAccount) GetNode(name string) *v1.Node {
 
 func (sa *ServiceAccount) GetAllWorkerNode(label string) *v1.NodeList {
 	options := metav1.ListOptions{
-		LabelSelector: "node-role.kubernetes.io/compute",
+		LabelSelector: label,
 	}
 	nodeList, err := sa.CoreV1().Nodes().List(context.TODO(), options)
 	if err != nil {
@@ -39,15 +39,13 @@ func (sa *ServiceAccount) GetPodByServiceName(serviceName, namespace string) *v1
 		log.Errorf("err: %s", err)
 		return nil
 	}
-	// 获取Service的选择器标签
+	// Service Selector
 	selector := service.Spec.Selector
 
-	// 构建Pod查询选项
 	podListOptions := metav1.ListOptions{
 		LabelSelector: labels.Set(selector).String(),
 	}
 
-	// 查询匹配的Pod列表
 	podList, err := sa.CoreV1().Pods(namespace).List(context.TODO(), podListOptions)
 	if err != nil {
 		log.Errorf("err: %s", err)
