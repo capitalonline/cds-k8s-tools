@@ -58,7 +58,8 @@ func GetCustomerHaproxyConfigs() (haproxyConfigs *HaConfigs, err error) {
 func UpdateHaproxyInstance() error {
 	CustomerHaConfigs, err := GetCustomerHaproxyConfigs()
 	if err != nil {
-		return err
+		log.Errorf("err: %s", err)
+		return nil
 	}
 
 	for _, Config := range CustomerHaConfigs.Instances {
@@ -67,7 +68,8 @@ func UpdateHaproxyInstance() error {
 		req := map[string]string{"TagName": Config.LbTag}
 		Instances, err := api.DescribeHaproxyInstancesByTag(req)
 		if err != nil {
-			return err
+			log.Errorf("DescribeHaproxyInstancesByTag failed: %s", err)
+			return nil
 		}
 
 		if len(Instances) == 0 {
@@ -80,8 +82,10 @@ func UpdateHaproxyInstance() error {
 			NewSvcInstancesIds = append(NewSvcInstancesIds, item.InstanceUuid)
 		}
 
-		// check old instance cache exists
+		// check old instanceIds cache exists
 		if OldInstancesIds, ok := SvcNameInstanceIdsMap.Load(Config.ServiceName); ok {
+			log.Infof("get cache in SvcNameInstanceIdsMap by ServiceName: %s", Config.ServiceName)
+
 			if equal := reflect.DeepEqual(NewSvcInstancesIds, OldInstancesIds.([]string)); equal {
 				log.Infof("Haproxy instances %+v no changed by ServiceName: %s", NewSvcInstancesIds, Config.ServiceName)
 				continue
@@ -90,7 +94,8 @@ func UpdateHaproxyInstance() error {
 			log.Infof("instances nums has changed, check or update backend server for haproxy policy")
 			err := CheckClusterIpNodeByHaConfig(Config)
 			if err != nil {
-				return err
+				log.Errorf("err: %s", err)
+				return nil
 			}
 
 		}
@@ -114,6 +119,7 @@ func ModifyHaproxyConfig(instanceId string, haInfo HaConfigInfo, newNodeIpList [
 	log.Infof("cluster current node ip: %+v", newNodeIpList)
 
 	if OldInstancePolicy, ok := InstanceIdPolicyMap.Load(instanceId); ok {
+		log.Infof("get cache in InstanceIdPolicyMap by instanceId: %s", instanceId)
 		InstancePolicy = OldInstancePolicy.(*api.HaStrategyInfoData)
 	} else {
 		req := map[string]string{"InstanceUuid": instanceId}
@@ -210,6 +216,7 @@ func ModifyHaproxyConfig(instanceId string, haInfo HaConfigInfo, newNodeIpList [
 		return
 	}
 
+	InstanceIdPolicyMap.Store(instanceId, InstancePolicy)
 	log.Infof("***no need to update the backend server by haInstanceId: %s", instanceId)
 }
 
@@ -225,7 +232,8 @@ func CheckClusterIpNodeByHaConfig(config HaConfigInfo) error {
 	// Count the number of Pods on each worker
 	podsByServiceName := client.Sa.GetPodByServiceName(config.ServiceName, config.NameSpace)
 	if podsByServiceName == nil {
-		return fmt.Errorf("not found pod by serviceName %s", config.ServiceName)
+		log.Errorf("not found pods by serviceName %s", config.ServiceName)
+		return nil
 	}
 
 	for _, pod := range podsByServiceName.Items {
@@ -240,12 +248,14 @@ func CheckClusterIpNodeByHaConfig(config HaConfigInfo) error {
 
 	// search haproxy instance describeInfo by tagName
 	if OldInstancesIds, ok := SvcNameInstanceIdsMap.Load(config.ServiceName); ok {
+		log.Infof("get cache in SvcNameInstanceIdsMap by ServiceName: %s", config.ServiceName)
 		SearchInstanceIds = OldInstancesIds.([]string)
 	} else {
 		req := map[string]string{"TagName": config.LbTag}
 		HaproxyInstances, err := api.DescribeHaproxyInstancesByTag(req)
 		if err != nil {
-			return err
+			log.Errorf("DescribeHaproxyInstancesByTag failed: %s", err)
+			return nil
 		}
 
 		for _, Instance := range HaproxyInstances {
@@ -270,13 +280,15 @@ func CheckClusterIpNodeByHaConfig(config HaConfigInfo) error {
 func UpdateNodePod() error {
 	haproxyConfigs, err := GetCustomerHaproxyConfigs()
 	if err != nil {
-		return err
+		log.Errorf("err: %s", err)
+		return nil
 	}
 
 	for _, haConfig := range haproxyConfigs.Instances {
 		err := CheckClusterIpNodeByHaConfig(haConfig)
 		if err != nil {
-			return fmt.Errorf("failed to get configmap")
+			log.Errorf("err: %s", err)
+			return nil
 		}
 	}
 	return nil
