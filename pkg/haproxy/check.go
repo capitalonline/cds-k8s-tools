@@ -166,6 +166,7 @@ func ModifyHaproxyConfigCLusterMode(instanceId string, haInfo HaConfigInfo, newN
 	}
 
 	if equal := reflect.DeepEqual(oldNodeIpList, newNodeIpList); equal {
+		InstanceIdPolicyMap.Store(instanceId, InstancePolicy)
 		log.Infof("*** end *** haproxy backend server no changed, continue")
 		return
 	}
