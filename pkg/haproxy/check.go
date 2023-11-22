@@ -138,7 +138,7 @@ func ModifyHaproxyConfigCLusterMode(instanceId string, haInfo HaConfigInfo, newN
 		ChangeNewHttpListeners []api.HttpListener
 	)
 
-	log.Infof("cluster current node ip: %+v", newNodeIpList)
+	log.Infof("Svc.ExternalTrafficPolicy: cluster, current node ip: %+v", newNodeIpList)
 
 	if OldInstancePolicy, ok := InstanceIdPolicyMap.Load(instanceId); ok {
 		log.Infof("get cache in InstanceIdPolicyMap by instanceId: %s", instanceId)
@@ -220,7 +220,7 @@ func ModifyHaproxyConfigLocalMode(instanceId string, haInfo HaConfigInfo, newNod
 		InstancePolicy         *api.HaStrategyInfoData
 	)
 
-	log.Infof("cluster current node ip: %+v", newNodeIpList)
+	log.Infof("Svc.ExternalTrafficPolicy: local, current node ip: %+v", newNodeIpList)
 
 	if OldInstancePolicy, ok := InstanceIdPolicyMap.Load(instanceId); ok {
 		log.Infof("get cache in InstanceIdPolicyMap by instanceId: %s", instanceId)
