@@ -49,6 +49,7 @@ func GetPodByServiceName(serviceName, namespace string) *v1.PodList {
 	if err != nil {
 		panic(err)
 	}
+	fmt.Println(service)
 	// 获取Service的选择器标签
 	selector := service.Spec.Selector
 	podListOptions := metav1.ListOptions{
@@ -146,15 +147,15 @@ func main2() {
 	}
 }
 
-func main() {
+func main1() {
 	ips := GetService("game1-svc", "ads")
 
 	fmt.Printf("ips: %+v", ips)
 
 }
 
-func main1() {
-	podList := GetPodByServiceName("nginx-svc", "test-reload-lb")
+func main() {
+	podList := GetPodByServiceName("game1-svc", "ads")
 	fmt.Printf("podList: %d", len(podList.Items))
 	for _, node := range podList.Items {
 		fmt.Println(node.Status.HostIP)

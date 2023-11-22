@@ -359,6 +359,8 @@ func CheckClusterIpNodeByHaConfig(config HaConfigInfo, NewSvcInstancesIds []stri
 
 	}
 
+	client.Sa.GetPodByServiceName(config.ServiceName, config.NameSpace)
+
 	Service := client.Sa.GetService(config.ServiceName, config.NameSpace)
 	if Service != nil {
 		return fmt.Errorf("not found service name %s in namespace %s", config.ServiceName, config.NameSpace)
