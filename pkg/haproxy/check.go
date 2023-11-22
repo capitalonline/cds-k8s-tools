@@ -223,12 +223,12 @@ func ModifyHaproxyConfig(instanceId string, haInfo HaConfigInfo, newNodeIpList [
 }
 
 func CheckClusterIpNodeByHaConfig(config HaConfigInfo, NewSvcInstancesIds []string) error {
-	log.Infof("begin to search haproxy instances by tag: %s", config.LbTag)
+	log.Infof("begin to search haproxy instances by tag: %s, NewSvcInstancesIds: %+v", config.LbTag, NewSvcInstancesIds)
 
 	var (
 		workerIpList      []string
-		IpPodNumMap       = make(map[string]int64)
 		SearchInstanceIds []string
+		IpPodNumMap       = make(map[string]int64)
 	)
 
 	// Count the number of Pods on each worker
@@ -253,7 +253,7 @@ func CheckClusterIpNodeByHaConfig(config HaConfigInfo, NewSvcInstancesIds []stri
 		log.Infof("get cache in SvcNameInstanceIdsMap by ServiceName: %s", config.ServiceName)
 		SearchInstanceIds = OldInstancesIds.([]string)
 
-		// from haproxy check timer
+		// from haproxy check timer and update latest instanceIds
 		if len(NewSvcInstancesIds) != 0 {
 			SearchInstanceIds = NewSvcInstancesIds
 		}
