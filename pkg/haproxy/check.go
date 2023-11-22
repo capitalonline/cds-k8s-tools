@@ -146,7 +146,7 @@ func ModifyHaproxyConfigCLusterMode(instanceId string, haInfo HaConfigInfo, newN
 		req := map[string]string{"InstanceUuid": instanceId}
 		HaInstancePolicy, err := api.DescribeLoadBalancerStrategy(req)
 		if err != nil {
-			log.Errorf("describeLoadBalancerStrategy failed: %s", err)
+			log.Errorf("DescribeLoadBalancerStrategy failed: %s", err)
 			return
 		}
 		InstancePolicy = HaInstancePolicy
@@ -165,7 +165,7 @@ func ModifyHaproxyConfigCLusterMode(instanceId string, haInfo HaConfigInfo, newN
 	}
 
 	if equal := reflect.DeepEqual(oldNodeIpList, newNodeIpList); equal {
-		log.Infof("haproxy backend server no changed, continue")
+		log.Infof("*** end *** haproxy backend server no changed, continue")
 		return
 	}
 
@@ -323,7 +323,7 @@ func ModifyHaproxyConfigLocalMode(instanceId string, haInfo HaConfigInfo, newNod
 }
 
 func CheckClusterIpNodeByHaConfig(config HaConfigInfo, NewSvcInstancesIds []string) error {
-	log.Infof("begin to search haproxy instances by tag: %s, NewSvcInstancesIds: %+v", config.LbTag, NewSvcInstancesIds)
+	log.Infof("*** begin *** search haproxy instances by tag: %s, NewSvcInstancesIds: %+v", config.LbTag, NewSvcInstancesIds)
 
 	var (
 		workerIpList      []string
@@ -345,8 +345,7 @@ func CheckClusterIpNodeByHaConfig(config HaConfigInfo, NewSvcInstancesIds []stri
 		req := map[string]string{"TagName": config.LbTag}
 		HaproxyInstances, err := api.DescribeHaproxyInstancesByTag(req)
 		if err != nil {
-			log.Errorf("DescribeHaproxyInstancesByTag failed: %s", err)
-			return nil
+			return fmt.Errorf("DescribeHaproxyInstancesByTag failed: %s", err)
 		}
 
 		for _, Instance := range HaproxyInstances {
@@ -361,8 +360,7 @@ func CheckClusterIpNodeByHaConfig(config HaConfigInfo, NewSvcInstancesIds []stri
 
 	Service := client.Sa.GetService(config.ServiceName, config.NameSpace)
 	if Service == nil {
-		log.Errorf("not found service name %s in namespace %s", config.ServiceName, config.NameSpace)
-		return nil
+		return fmt.Errorf("not found service name %s in namespace %s", config.ServiceName, config.NameSpace)
 	}
 
 	if Service.Spec.ExternalTrafficPolicy == "local" {
