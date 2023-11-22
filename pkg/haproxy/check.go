@@ -16,6 +16,7 @@ const (
 	CustomerConfigMapName = "customer-haproxy-config"
 	ConfigMapDataKey      = "haproxy-instances"
 	DefaultNameSpace      = "kube-system"
+	workerLabel           = "node-role.kubernetes.io/compute"
 )
 
 var (
@@ -55,6 +56,21 @@ func GetCustomerHaproxyConfigs() (haproxyConfigs *HaConfigs, err error) {
 	return
 }
 
+func verifyUserConfigMap(CustomerHaConfigs *HaConfigs) error {
+	verifyMap := make(map[string]bool)
+	for _, Config := range CustomerHaConfigs.Instances {
+		if verifyMap[Config.ServiceName] {
+			return fmt.Errorf("service Name repeated in user haproxy-instance configmap")
+		}
+		verifyMap[Config.LbTag] = true
+		if verifyMap[Config.LbTag] {
+			return fmt.Errorf("lb tag repeated in user haproxy-instance configmap")
+		}
+		verifyMap[Config.LbTag] = true
+	}
+	return nil
+}
+
 func UpdateHaproxyInstance() error {
 	CustomerHaConfigs, err := GetCustomerHaproxyConfigs()
 	if err != nil {
@@ -62,7 +78,12 @@ func UpdateHaproxyInstance() error {
 		return nil
 	}
 
-	// verify customer params tagName and ServiceName
+	// verify customer params: tagName and ServiceName
+	err = verifyUserConfigMap(CustomerHaConfigs)
+	if err != nil {
+		log.Errorf("err: %s", err)
+		return nil
+	}
 
 	for _, Config := range CustomerHaConfigs.Instances {
 		log.Infof("begin check haproxy instance by serviceName %s", Config.ServiceName)
@@ -108,14 +129,93 @@ func UpdateHaproxyInstance() error {
 	return nil
 }
 
-func ModifyHaproxyConfig(instanceId string, haInfo HaConfigInfo, newNodeIpList []string, NewNodeIpPodMap map[string]int64) {
+func ModifyHaproxyConfigCLusterMode(instanceId string, haInfo HaConfigInfo, newNodeIpList []string) {
+	var (
+		InstancePolicy         *api.HaStrategyInfoData
+		oldNodeIpList          []string
+		newBackendServers      []api.BackendServer
+		ChangeNewHttpListeners []api.HttpListener
+	)
+
+	log.Infof("cluster current node ip: %+v", newNodeIpList)
+
+	if OldInstancePolicy, ok := InstanceIdPolicyMap.Load(instanceId); ok {
+		log.Infof("get cache in InstanceIdPolicyMap by instanceId: %s", instanceId)
+		InstancePolicy = OldInstancePolicy.(*api.HaStrategyInfoData)
+	} else {
+		req := map[string]string{"InstanceUuid": instanceId}
+		HaInstancePolicy, err := api.DescribeLoadBalancerStrategy(req)
+		if err != nil {
+			log.Errorf("describeLoadBalancerStrategy failed: %s", err)
+			return
+		}
+		InstancePolicy = HaInstancePolicy
+	}
+
+	// all user only uses http policies
+	httpListeners := InstancePolicy.HttpListeners
+	if len(httpListeners) == 0 {
+		log.Errorf("haproxy instance don't have http type policy")
+		return
+	}
+
+	oldBackendServers := httpListeners[0].BackendServer
+	for _, backendServer := range oldBackendServers {
+		oldNodeIpList = append(oldNodeIpList, backendServer.IP)
+	}
+
+	if equal := reflect.DeepEqual(oldNodeIpList, newNodeIpList); equal {
+		log.Infof("haproxy backend server no changed, continue")
+		return
+	}
+
+	for _, nodeIp := range newNodeIpList {
+		newBackendServers = append(newBackendServers, api.BackendServer{
+			IP:      nodeIp,
+			Port:    haInfo.NodePort,
+			Weight:  "1",
+			MaxConn: haInfo.MaxConn,
+		})
+	}
+
+	for _, policy := range InstancePolicy.HttpListeners {
+		for _, port := range haInfo.ListenerPort {
+			if policy.ListenerPort == port {
+				policy.BackendServer = newBackendServers
+			}
+		}
+		ChangeNewHttpListeners = append(ChangeNewHttpListeners, policy)
+	}
+	InstancePolicy.HttpListeners = ChangeNewHttpListeners
+
+	// send to task for update haproxy policy
+	modifyParams := api.ModifyHaStrategyReq{
+		InstanceUuid:       instanceId,
+		HaStrategyInfoData: InstancePolicy,
+	}
+
+	res, err := api.ModifyLoadBalancerStrategy(modifyParams)
+	if err != nil {
+		log.Errorf("send ModifyLoadBalancerStrategy task failed: %s", err)
+		return
+	}
+
+	// cache can be updated only after the task is successfully
+	InstanceIdPolicyMap.Store(instanceId, InstancePolicy)
+
+	log.Infof("taskId: %s sent successfully", res.TaskId)
+	return
+
+}
+
+func ModifyHaproxyConfigLocalMode(instanceId string, haInfo HaConfigInfo, newNodeIpList []string, NewNodeIpPodMap map[string]int64) {
 
 	var (
-		UseOldHaConfig        = true
-		OldNodeIpPodMap       = make(map[string]int64)
-		newBackendServers     []api.BackendServer
-		ChangeNewTcpListeners []api.HttpListener
-		InstancePolicy        *api.HaStrategyInfoData
+		UseOldHaConfig         = true
+		OldNodeIpPodMap        = make(map[string]int64)
+		newBackendServers      []api.BackendServer
+		ChangeNewHttpListeners []api.HttpListener
+		InstancePolicy         *api.HaStrategyInfoData
 	)
 
 	log.Infof("cluster current node ip: %+v", newNodeIpList)
@@ -194,9 +294,9 @@ func ModifyHaproxyConfig(instanceId string, haInfo HaConfigInfo, newNodeIpList [
 					policy.BackendServer = newBackendServers
 				}
 			}
-			ChangeNewTcpListeners = append(ChangeNewTcpListeners, policy)
+			ChangeNewHttpListeners = append(ChangeNewHttpListeners, policy)
 		}
-		InstancePolicy.HttpListeners = ChangeNewTcpListeners
+		InstancePolicy.HttpListeners = ChangeNewHttpListeners
 		log.Infof("***begin to update harproxy instance, latest policy params: %+v", InstancePolicy)
 
 		// send to task for update haproxy policy
@@ -231,23 +331,6 @@ func CheckClusterIpNodeByHaConfig(config HaConfigInfo, NewSvcInstancesIds []stri
 		IpPodNumMap       = make(map[string]int64)
 	)
 
-	// Count the number of Pods on each worker
-	podsByServiceName := client.Sa.GetPodByServiceName(config.ServiceName, config.NameSpace)
-	if podsByServiceName == nil {
-		log.Errorf("not found pods by serviceName %s", config.ServiceName)
-		return nil
-	}
-
-	for _, pod := range podsByServiceName.Items {
-		nodeIp := pod.Status.HostIP
-		if _, ok := IpPodNumMap[nodeIp]; ok {
-			IpPodNumMap[nodeIp]++
-			continue
-		}
-		workerIpList = append(workerIpList, nodeIp)
-		IpPodNumMap[nodeIp] = 1
-	}
-
 	// search haproxy instance describeInfo by tagName
 	if OldInstancesIds, ok := SvcNameInstanceIdsMap.Load(config.ServiceName); ok {
 		log.Infof("get cache in SvcNameInstanceIdsMap by ServiceName: %s", config.ServiceName)
@@ -276,9 +359,40 @@ func CheckClusterIpNodeByHaConfig(config HaConfigInfo, NewSvcInstancesIds []stri
 
 	}
 
-	//  check or update backend server for haproxy policy
-	for _, instanceId := range SearchInstanceIds {
-		ModifyHaproxyConfig(instanceId, config, workerIpList, IpPodNumMap)
+	Service := client.Sa.GetService(config.ServiceName, config.NameSpace)
+	if Service != nil {
+		return fmt.Errorf("not found service name %s in namespace %s", config.ServiceName, config.NameSpace)
+	}
+
+	if Service.Spec.ExternalTrafficPolicy == "local" {
+		// Count the number of Pods on each worker
+		podsByServiceName := client.Sa.GetPodByServiceName(config.ServiceName, config.NameSpace)
+		if podsByServiceName == nil {
+			return fmt.Errorf("not found pods by serviceName %s", config.ServiceName)
+		}
+
+		for _, pod := range podsByServiceName.Items {
+			if _, ok := IpPodNumMap[pod.Status.HostIP]; ok {
+				IpPodNumMap[pod.Status.HostIP]++
+			} else {
+				workerIpList = append(workerIpList, pod.Status.HostIP)
+				IpPodNumMap[pod.Status.HostIP] = 1
+			}
+		}
+
+		//  check or update backend server for haproxy policy
+		for _, instanceId := range SearchInstanceIds {
+			ModifyHaproxyConfigLocalMode(instanceId, config, workerIpList, IpPodNumMap)
+		}
+
+	} else {
+		// ExternalTrafficPolicy == cluster and policy default weigh == 1
+		workerIpList = client.Sa.GetWorkerNodeInternalIps(workerLabel)
+
+		//  check or update backend server for haproxy policy
+		for _, instanceId := range SearchInstanceIds {
+			ModifyHaproxyConfigCLusterMode(instanceId, config, workerIpList)
+		}
 	}
 
 	return nil

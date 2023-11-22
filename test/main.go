@@ -63,7 +63,7 @@ func GetPodByServiceName(serviceName, namespace string) *v1.PodList {
 	return podList
 }
 
-func GetAllWorkerNodeByLabel(name string) (*v1.NodeList, error) {
+func GetAllWorkerNodeByLabel(name string) (ips []string) {
 
 	cli, err := KubeClient(kubeConfig)
 	if err != nil {
@@ -73,11 +73,20 @@ func GetAllWorkerNodeByLabel(name string) (*v1.NodeList, error) {
 	options := metav1.ListOptions{
 		LabelSelector: name,
 	}
+
 	nodeList, err := cli.CoreV1().Nodes().List(context.TODO(), options)
 	if err != nil {
-		panic(err)
+		return nil
 	}
-	return nodeList, nil
+
+	for _, node := range nodeList.Items {
+		for _, address := range node.Status.Addresses {
+			if address.Type == v1.NodeInternalIP {
+				ips = append(ips, address.Address)
+			}
+		}
+	}
+	return
 }
 
 func GetConfigMapByName(name, namespace string) (*v1.ConfigMap, error) {
@@ -106,7 +115,7 @@ type HaproxyConfig struct {
 	ListenerPort []int  `json:"listener_ports"`
 }
 
-func main() {
+func main2() {
 	// generate configmap from json file: kubectl create configmap my-cm  --from-file=haproxy_instances --namespace=kube-system
 	configMap, err := GetConfigMapByName("my-cm", "kube-system")
 	if err != nil {
@@ -126,21 +135,11 @@ func main() {
 	}
 }
 
-func main2() {
-	nodeList, err := GetAllWorkerNodeByLabel("node-role.kubernetes.io/compute")
-	if err != nil {
-		return
-	}
-	fmt.Printf("nodeList: %d", len(nodeList.Items))
+func main() {
+	ips := GetAllWorkerNodeByLabel("node-role.kubernetes.io/compute")
 
-	//var ipList []string
-	for _, node := range nodeList.Items {
-		for _, address := range node.Status.Addresses {
-			if address.Type == v1.NodeInternalIP {
-				fmt.Printf("Node: %s, IP: %s\n", node.Name, address.Address)
-			}
-		}
-	}
+	fmt.Printf("ips: %+v", ips)
+
 }
 
 func main1() {

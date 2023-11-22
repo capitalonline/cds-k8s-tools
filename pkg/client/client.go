@@ -19,26 +19,58 @@ func (sa *ServiceAccount) GetNode(name string) *v1.Node {
 	return nodeRef
 }
 
-func (sa *ServiceAccount) GetAllWorkerNode(label string) *v1.NodeList {
+func (sa *ServiceAccount) GetWorkerNodeInternalIps(label string) (ips []string) {
 	options := metav1.ListOptions{
 		LabelSelector: label,
 	}
+
 	nodeList, err := sa.CoreV1().Nodes().List(context.TODO(), options)
 	if err != nil {
 		log.Errorf("err: %s", err)
 		return nil
 	}
-	return nodeList
+
+	for _, node := range nodeList.Items {
+		for _, address := range node.Status.Addresses {
+			if address.Type == v1.NodeInternalIP {
+				ips = append(ips, address.Address)
+			}
+		}
+	}
+
+	return
 }
 
-func (sa *ServiceAccount) GetPodByServiceName(serviceName, namespace string) *v1.PodList {
-
-	// get service
-	service, err := sa.CoreV1().Services(namespace).Get(context.TODO(), serviceName, metav1.GetOptions{})
+func (sa *ServiceAccount) GetService(serviceName, nameSpace string) *v1.Service {
+	service, err := sa.CoreV1().Services(nameSpace).Get(context.TODO(), serviceName, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("err: %s", err)
 		return nil
 	}
+	return service
+}
+
+func (sa *ServiceAccount) GetPodByService(service *v1.Service) *v1.PodList {
+	selector := service.Spec.Selector
+	podListOptions := metav1.ListOptions{
+		LabelSelector: labels.Set(selector).String(),
+	}
+	podList, err := sa.CoreV1().Pods(service.ObjectMeta.Namespace).List(context.TODO(), podListOptions)
+	if err != nil {
+		log.Errorf("err: %s", err)
+		return nil
+	}
+	return podList
+}
+
+func (sa *ServiceAccount) GetPodByServiceName(serviceName, nameSpace string) *v1.PodList {
+
+	service, err := sa.CoreV1().Services(nameSpace).Get(context.TODO(), serviceName, metav1.GetOptions{})
+	if err != nil {
+		log.Errorf("err: %s", err)
+		return nil
+	}
+
 	// Service Selector
 	selector := service.Spec.Selector
 
@@ -46,7 +78,7 @@ func (sa *ServiceAccount) GetPodByServiceName(serviceName, namespace string) *v1
 		LabelSelector: labels.Set(selector).String(),
 	}
 
-	podList, err := sa.CoreV1().Pods(namespace).List(context.TODO(), podListOptions)
+	podList, err := sa.CoreV1().Pods(nameSpace).List(context.TODO(), podListOptions)
 	if err != nil {
 		log.Errorf("err: %s", err)
 		return nil
