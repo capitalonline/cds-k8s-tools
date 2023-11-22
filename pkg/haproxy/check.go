@@ -62,7 +62,8 @@ func verifyUserConfigMap(CustomerHaConfigs *HaConfigs) error {
 		if verifyMap[Config.ServiceName] {
 			return fmt.Errorf("service Name repeated in user haproxy-instance configmap")
 		}
-		verifyMap[Config.LbTag] = true
+		verifyMap[Config.ServiceName] = true
+
 		if verifyMap[Config.LbTag] {
 			return fmt.Errorf("lb tag repeated in user haproxy-instance configmap")
 		}
