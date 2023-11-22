@@ -365,7 +365,7 @@ func CheckClusterIpNodeByHaConfig(config HaConfigInfo, NewSvcInstancesIds []stri
 		return fmt.Errorf("not found service name %s in namespace %s", config.ServiceName, config.NameSpace)
 	}
 
-	if Service.Spec.ExternalTrafficPolicy == "local" {
+	if Service.Spec.ExternalTrafficPolicy == "Local" {
 		// Count the number of Pods on each worker
 		podsByServiceName := client.Sa.GetPodByServiceName(config.ServiceName, config.NameSpace)
 		if podsByServiceName == nil {
