@@ -42,6 +42,7 @@ func (sa *ServiceAccount) GetWorkerNodeInternalIps(label string) (ips []string) 
 }
 
 func (sa *ServiceAccount) GetService(serviceName, nameSpace string) *v1.Service {
+	log.Infof("service name: %s, namespace: %s", serviceName, nameSpace)
 	service, err := sa.CoreV1().Services(nameSpace).Get(context.TODO(), serviceName, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("err: %s", err)
