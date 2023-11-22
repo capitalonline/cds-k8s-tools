@@ -69,8 +69,6 @@ func (sa *ServiceAccount) GetPodByServiceName(serviceName, nameSpace string) *v1
 		log.Errorf("err: %s", err)
 		return nil
 	}
-	log.Infof("***service: %+v", service)
-
 	// Service Selector
 	selector := service.Spec.Selector
 
