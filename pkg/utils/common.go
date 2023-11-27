@@ -47,13 +47,13 @@ func init() {
 		AccessKeyID = os.Getenv(accessKeyIdLiteral)
 
 		// 测试，上线后删除
-		AccessKeyID = "dcf62a6ede7011edab3adef36dfc6e1d"
+		// AccessKeyID = "dcf62a6ede7011edab3adef36dfc6e1d"
 	}
 	if AccessKeySecret == "" {
 		AccessKeySecret = os.Getenv(accessKeySecretLiteral)
 
 		// 测试，上线后删除
-		AccessKeySecret = "5407e3dd33fe6392c9affc58036362f7"
+		// AccessKeySecret = "5407e3dd33fe6392c9affc58036362f7"
 	}
 
 	if os.Getenv("DEPLOY_TYPE") == "pre" {
