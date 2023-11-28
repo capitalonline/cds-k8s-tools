@@ -91,6 +91,7 @@ func UpdateHaproxyInstance() error {
 
 		req := map[string]string{"TagName": Config.LbTag}
 		Instances, err := api.DescribeHaproxyInstancesByTag(req)
+		log.Infof("test log: instances: %+v", Instances)
 		if err != nil {
 			log.Errorf("DescribeHaproxyInstancesByTag failed: %s", err)
 			return nil
