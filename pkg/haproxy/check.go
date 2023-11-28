@@ -87,7 +87,7 @@ func UpdateHaproxyInstance() error {
 	}
 
 	for _, Config := range CustomerHaConfigs.Instances {
-		log.Infof("begin check haproxy instance by serviceName %s", Config.ServiceName)
+		log.Infof("begin check haproxy instance by tag name %s", Config.LbTag)
 
 		req := map[string]string{"TagName": Config.LbTag}
 		Instances, err := api.DescribeHaproxyInstancesByTag(req)
@@ -98,7 +98,7 @@ func UpdateHaproxyInstance() error {
 		}
 
 		if len(Instances) == 0 {
-			log.Infof("not found haproxy instances by tag name %s, serviceName %s", Config.LbTag, Config.ServiceName)
+			log.Infof("not found haproxy instances by tag name %s", Config.LbTag)
 			continue
 		}
 
