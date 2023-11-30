@@ -99,6 +99,7 @@ func UpdateHaproxyInstance() error {
 
 		if len(Instances) == 0 {
 			log.Infof("not found haproxy instances by tag name %s", Config.LbTag)
+			SvcNameInstanceIdsMap.Delete(Config.ServiceName)
 			continue
 		}
 
@@ -355,10 +356,11 @@ func CheckClusterIpNodeByHaConfig(config HaConfigInfo, NewSvcInstancesIds []stri
 			SearchInstanceIds = append(SearchInstanceIds, Instance.InstanceUuid)
 		}
 
-		if len(SearchInstanceIds) != 0 {
-			SvcNameInstanceIdsMap.Store(config.ServiceName, SearchInstanceIds)
+		if len(SearchInstanceIds) == 0 {
+			log.Infof("not found haproxy instances by tag name %s", config.LbTag)
+			return nil
 		}
-
+		SvcNameInstanceIdsMap.Store(config.ServiceName, SearchInstanceIds)
 	}
 
 	Service := client.Sa.GetService(config.ServiceName, config.NameSpace)
