@@ -374,11 +374,13 @@ func CheckClusterIpNodeByHaConfig(config HaConfigInfo, NewSvcInstancesIds []stri
 		}
 
 		for _, pod := range podsByServiceName.Items {
-			if _, ok := IpPodNumMap[pod.Status.HostIP]; ok {
-				IpPodNumMap[pod.Status.HostIP]++
-			} else {
-				workerIpList = append(workerIpList, pod.Status.HostIP)
-				IpPodNumMap[pod.Status.HostIP] = 1
+			if pod.Status.HostIP != "" {
+				if _, ok := IpPodNumMap[pod.Status.HostIP]; ok {
+					IpPodNumMap[pod.Status.HostIP]++
+				} else {
+					workerIpList = append(workerIpList, pod.Status.HostIP)
+					IpPodNumMap[pod.Status.HostIP] = 1
+				}
 			}
 		}
 
