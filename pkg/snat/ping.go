@@ -15,13 +15,13 @@ import (
 )
 
 var (
-	NodePingMonitor = monitor.NewNetMonitor("node_ping", PingConn, PingReview, GetDnsFromNode)
-	PodPingMonitor  = monitor.NewNetMonitor("pod_ping", PingConn, PingReview, GetDefaultPingAddr)
+	NodePingMonitor = monitor.NewNetMonitor(consts.NetMonitorNodePing, PingConn, PingReview, GetDnsFromNode)
+	PodPingMonitor  = monitor.NewNetMonitor(consts.NetMonitorPodPing, PingConn, PingReview, GetDefaultPingAddr)
 )
 
 func PingConn(addr, key string, cfg monitor.BaseMonitorConfig, netMonitor *monitor.NetMonitor) monitor.NetAlarmInfo {
 	var (
-		pingInfo = fmt.Sprintf("ping【%s】: ")
+		pingInfo = fmt.Sprintf("ping【%s】: ", addr)
 		ok       = true
 		pingCmd  = fmt.Sprintf("ping %s -c %d", addr, cfg.CheckSum)
 	)

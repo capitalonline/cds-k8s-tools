@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	TelnetMonitor      = monitor.NewNetMonitor("telnet", TcpConn, TelnetReview, nil)
+	TelnetMonitor      = monitor.NewNetMonitor(consts.NetMonitorTelnet, TcpConn, TelnetReview, nil)
 	TelnetAddrAlarmMap = new(sync.Map)
 )
 
