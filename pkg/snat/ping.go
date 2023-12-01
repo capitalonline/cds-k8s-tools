@@ -1,8 +1,8 @@
 package snat
 
 import (
-	"cds-k8s-tools/monitor"
 	"cds-k8s-tools/pkg/consts"
+	"cds-k8s-tools/pkg/monitor"
 	"cds-k8s-tools/pkg/oscmd"
 	"cds-k8s-tools/pkg/service"
 	"fmt"

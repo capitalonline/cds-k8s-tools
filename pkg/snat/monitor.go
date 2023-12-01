@@ -2,9 +2,9 @@ package snat
 
 import (
 	"bytes"
-	"cds-k8s-tools/monitor"
 	"cds-k8s-tools/pkg/client"
 	"cds-k8s-tools/pkg/consts"
+	"cds-k8s-tools/pkg/monitor"
 	"cds-k8s-tools/pkg/service"
 	"cds-k8s-tools/pkg/utils"
 	"context"
