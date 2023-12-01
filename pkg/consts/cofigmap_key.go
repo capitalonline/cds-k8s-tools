@@ -9,6 +9,7 @@ const (
 	CheckTimeout         = "snat.check.timeout"
 	CheckNodePingExclude = "snat.check.node_ping_exclude"
 
+	BlankMetric         = ""
 	CheckPodPingExt     = "snat.check.pod_ping_ext"
 	CheckPodTelnetExt   = "snat.check.pod_telnet_ext"
 	CheckNodePingExt    = "snat.check.node_ping_ext"

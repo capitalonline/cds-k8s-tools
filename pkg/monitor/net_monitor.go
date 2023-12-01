@@ -81,7 +81,7 @@ func (m *NetMonitor) ResetDefault(value, metric string) {
 	case consts.Yes:
 		m.DefaultCheckMetric = metric
 	case consts.No:
-		m.DefaultCheckMetric = ""
+		m.DefaultCheckMetric = consts.BlankMetric
 	}
 }
 
@@ -121,7 +121,7 @@ func (m *NetMonitor) check(metric string, wg *sync.WaitGroup) {
 			CheckTimeout: m.CheckTimeout,
 			RecoverSum:   m.RecoverSum,
 		}
-		if m.DefaultCheckMetric != "" && m.DefaultCheckAddr != nil {
+		if m.DefaultCheckMetric != consts.BlankMetric && m.DefaultCheckAddr != nil {
 			l := ListFiltration(m.DefaultCheckAddr(), m.AddrExclude)
 			for _, addr := range l {
 				if addr == "" {
@@ -166,7 +166,7 @@ func NewNetMonitor(name string,
 			RecoverSum:   3,
 		},
 		MonitorName:        name,
-		DefaultCheckMetric: "",
+		DefaultCheckMetric: consts.BlankMetric,
 		AddrExt:            make([]string, 0),
 		AddrExclude:        make([]string, 0),
 
