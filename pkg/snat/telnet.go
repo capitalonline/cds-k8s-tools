@@ -5,6 +5,7 @@ import (
 	"cds-k8s-tools/pkg/monitor"
 	"cds-k8s-tools/pkg/service"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"net"
 	"os"
 	"sync"
@@ -90,6 +91,9 @@ func TcpConn(addr, key string, cfg monitor.BaseMonitorConfig, netMonitor *monito
 	}
 	tcpInfo = fmt.Sprintf("地址【%v】tcp连接成功率%0.1f%%）",
 		addr, (float64(cfg.CheckSum-failSum)/float64(cfg.CheckSum))*100)
+
+	log.Debugf("%s", tcpInfo)
+
 	if failSum >= cfg.CheckLimit {
 		ok = false
 	}

@@ -46,7 +46,7 @@ func PingConn(addr, key string, cfg monitor.BaseMonitorConfig, netMonitor *monit
 						} else {
 							ok = true
 						}
-						log.Infof("ping %s request: [%.2f/%.2f](%v)", addr, left, right, lossData)
+						// log.Infof("ping %s request: [%.2f/%.2f](%v)", addr, left, right, lossData)
 					}
 				}
 				break
@@ -56,6 +56,9 @@ func PingConn(addr, key string, cfg monitor.BaseMonitorConfig, netMonitor *monit
 	if ok {
 		pingInfo += " 可达"
 	}
+
+	log.Debugf("%v", pingInfo)
+
 	alarmInfo := monitor.NetAlarmInfo{
 		Metric: key,
 		Value:  ok,

@@ -107,23 +107,12 @@ func (m *NetMonitor) check(metric string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for {
 		time.Sleep(time.Duration(m.CheckStep) * time.Second)
-		if len(m.AddrExt) == 0 {
-			continue
-		}
-		addrList := make([]string, 0)
-		addrList = append(addrList, m.AddrExt...)
 		cfg := BaseMonitorConfig{
 			CheckSum:     m.CheckSum,
 			CheckLimit:   m.CheckLimit,
 			CheckStep:    m.CheckStep,
 			CheckTimeout: m.CheckTimeout,
 			RecoverSum:   m.RecoverSum,
-		}
-		for _, addr := range addrList {
-			if addr == "" || m.CheckFunc == nil {
-				continue
-			}
-			go m.CheckFunc(addr, metric, cfg, m)
 		}
 		if m.DefaultCheckMetric != "" && m.DefaultCheckAddr != nil {
 			l := ListFiltration(m.DefaultCheckAddr(), m.AddrExclude)
@@ -133,6 +122,17 @@ func (m *NetMonitor) check(metric string, wg *sync.WaitGroup) {
 				}
 				go m.CheckFunc(addr, m.DefaultCheckMetric, cfg, m)
 			}
+		}
+		if len(m.AddrExt) == 0 {
+			continue
+		}
+		addrList := make([]string, 0)
+		addrList = append(addrList, m.AddrExt...)
+		for _, addr := range addrList {
+			if addr == "" || m.CheckFunc == nil {
+				continue
+			}
+			go m.CheckFunc(addr, metric, cfg, m)
 		}
 	}
 }
