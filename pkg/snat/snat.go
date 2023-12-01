@@ -146,7 +146,7 @@ func UpdateGw() (err error) {
 	filename, line, gw, isNetplan, err = mastGetGwFromNode()
 	if err != nil {
 		// 告警
-		alarm(&service.AlarmMessage{
+		_ = alarm(&service.AlarmMessage{
 			NodeName: os.Getenv(consts.NODE_NAME),
 			Type:     consts.SNatErrorAlarmType,
 			Metric:   consts.GatewayFileErr,

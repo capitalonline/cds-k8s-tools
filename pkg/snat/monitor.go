@@ -79,12 +79,11 @@ func CheckSNat() {
 	go PodPingMonitor.StartMonitor(consts.CheckPodPingExt)
 }
 
-func alarm(msg *service.AlarmMessage) {
+func alarm(msg *service.AlarmMessage) error {
 	alarmService, err := client.Sa.CoreV1().Services(consts.AlarmPodNamespace).
 		List(context.Background(), metav1.ListOptions{})
 	if err != nil {
-		log.Errorf("get cds-alarm-service error: %v", err)
-		return
+		return fmt.Errorf("get cds-alarm-service error: %v", err)
 	}
 	ip := ""
 	port := consts.AlarmPodServiceDefaultPort
@@ -98,8 +97,7 @@ func alarm(msg *service.AlarmMessage) {
 		}
 	}
 	if ip == "" {
-		log.Errorf("don't have cds-alarm-service")
-		return
+		return fmt.Errorf("don't have cds-alarm-service")
 	}
 
 	req := service.AlarmInstance{
@@ -114,7 +112,7 @@ func alarm(msg *service.AlarmMessage) {
 	_, err = utils.DoRequest(http.MethodPost,
 		fmt.Sprintf("http://%s:%d%s", ip, port, consts.AlarmServiceV2Route), bytes.NewBuffer(body))
 	if err != nil {
-		log.Errorf("request cds-alarm-service service err: %v", err)
-		return
+		return fmt.Errorf("request cds-alarm-service service err: %v", err)
 	}
+	return nil
 }

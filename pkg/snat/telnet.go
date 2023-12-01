@@ -49,25 +49,31 @@ func TelnetReview(info monitor.NetAlarmInfo, m *monitor.NetMonitor) {
 			TelnetAddrAlarmMap.Delete(info.Addr)
 			if callAlarm {
 				// 恢复, 发送回复请求
-				alarm(&service.AlarmMessage{
+				if err := alarm(&service.AlarmMessage{
 					NodeName: os.Getenv(consts.NODE_NAME),
 					Type:     consts.SNatRecoverAlarmType,
 					Metric:   info.Metric,
 					Value:    info.Addr,
 					Msg:      result.Msg,
-				})
+				}); err != nil {
+					log.Errorf("call alarm fail: %v", err)
+				}
 			}
 			return
 		}
 		if failSum >= m.RecoverSum && !callAlarm {
-			alarm(&service.AlarmMessage{
+			err := alarm(&service.AlarmMessage{
 				NodeName: os.Getenv(consts.NODE_NAME),
 				Type:     consts.SNatErrorAlarmType,
 				Metric:   info.Metric,
 				Value:    info.Addr,
 				Msg:      result.Msg,
 			})
-			callAlarm = true
+			if err != nil {
+				log.Errorf("call alarm fail: %v", err)
+			} else {
+				callAlarm = true
+			}
 		}
 		if failSum > maxFailSum {
 			m.Recover()
