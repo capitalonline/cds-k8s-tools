@@ -73,14 +73,13 @@ func getGwFromConf() (sNatIP string) {
 		log.Errorf("annotation key(%s) not found in node(%s)", sNatKey, nodeName)
 		return
 	}
-	sNatRoleKey := fmt.Sprintf("default.%s%s", AnnotationSNatKeyPre, forSNatRole)
-	sNatIP = conf.GetKeyString(sNatRoleKey)
+	sNatRoleKey := fmt.Sprintf("%s%s", AnnotationSNatKeyPre, forSNatRole)
+	sNatIP = conf.GetKeyString(consts.DefaultConfig, sNatRoleKey)
 	return
 }
 
 func getIntervalFromConf() int {
-	refreshIntervalKey := fmt.Sprintf("default.%s", RefreshInterval)
-	return conf.GetKeyInt(refreshIntervalKey)
+	return conf.GetKeyInt(consts.DefaultConfig, RefreshInterval)
 }
 
 func mastGetGwFromNode() (filename, line, gw string, isNetplan bool, err error) {
