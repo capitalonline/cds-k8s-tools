@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"cds-k8s-tools/pkg/consts"
 	"cds-k8s-tools/pkg/utils"
 	"encoding/json"
 	"fmt"
@@ -17,20 +18,15 @@ import (
 	"syscall"
 )
 
-const (
-	CDS_CLUSTER_ID        = "CDS_CLUSTER_ID"
-	CDS_CLUSTER_REGION_ID = "CDS_CLUSTER_REGION_ID"
-)
-
 func Run() {
 	gin.SetMode(gin.ReleaseMode)
-	gin.DisableConsoleColor()
 	engine := gin.Default()
 	engine.Use(cors.Default())
 	engine.Use(gin_zip.Gzip(gin_zip.DefaultCompression, gin_zip.WithDecompressFn(gin_zip.DefaultDecompressHandle)))
 
 	engine.GET("/health", Health)
 	engine.POST("/alarm", Alarm)
+	engine.POST("/v2/alarm", AlarmV2)
 
 	ch := make(chan error)
 	go InterruptHandler(ch)
@@ -48,19 +44,19 @@ func InterruptHandler(ch chan<- error) {
 }
 
 func Health(c *gin.Context) {
-	c.JSON(http.StatusOK, map[string]interface{}{"code": "Success", "msg": "成功"})
+	c.JSON(http.StatusOK, Success)
 }
 
 func Alarm(c *gin.Context) {
 	var request AlarmReq
 	err := c.ShouldBindJSON(&request)
 	if err != nil {
-		c.JSON(http.StatusOK, map[string]interface{}{"code": "ParamError", "msg": "参数错误"})
+		c.JSON(http.StatusBadRequest, ParamError)
 	} else {
 		//  上报 openapi 告警
 		var cckAlarm = CckAlarmReq{
-			ClusterId:  os.Getenv(CDS_CLUSTER_ID),
-			Site:       os.Getenv(CDS_CLUSTER_REGION_ID),
+			ClusterId:  os.Getenv(consts.CDS_CLUSTER_ID),
+			Site:       os.Getenv(consts.CDS_CLUSTER_REGION_ID),
 			Msg:        request.Message.Msg,
 			Hostname:   request.Name,
 			AlarmType:  request.Type,
@@ -69,7 +65,7 @@ func Alarm(c *gin.Context) {
 		}
 		b, _ := json.Marshal(cckAlarm)
 
-		req, _ := utils.NewCCKRequest(utils.SendAlarm, http.MethodPost, nil, bytes.NewReader(b))
+		req, _ := utils.NewCCKRequest(consts.SendAlarm, http.MethodPost, nil, bytes.NewReader(b))
 
 		response, err := utils.DoOpenApiRequest(req)
 		if err != nil {
@@ -90,4 +86,15 @@ func Alarm(c *gin.Context) {
 			}
 		}
 	}
+}
+
+func AlarmV2(c *gin.Context) {
+	var request AlarmInstance
+	err := c.ShouldBindJSON(&request)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, ParamError)
+	} else {
+		AlarmChan <- request
+	}
+	c.JSON(http.StatusOK, Success)
 }
