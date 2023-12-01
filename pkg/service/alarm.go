@@ -58,7 +58,7 @@ func AlarmCenter() {
 func ReqAlarmOpenApi(request CckNewAlarmReq) error {
 	b, _ := json.Marshal(request)
 	log.Infof("req alarm openapi body %s", string(b))
-	return nil
+	// return nil  // 自测解开注释
 	req, _ := utils.NewCCKRequest(consts.SendSNatAlarmInfo, http.MethodPost, nil, bytes.NewReader(b))
 	response, err := utils.DoOpenApiRequest(req)
 	if err != nil {
