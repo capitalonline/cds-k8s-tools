@@ -59,9 +59,7 @@ func (m *NetMonitor) ResetCommon(cfg BaseMonitorConfig) {
 			m.CheckLimit = m.CheckSum
 		}
 	}
-	if cfg.CheckTimeout > 0 {
-		m.CheckTimeout = cfg.CheckTimeout
-	}
+
 	if cfg.RecoverSum > 1 {
 		m.RecoverSum = cfg.RecoverSum
 		if m.RecoverSum > 30 {
@@ -157,7 +155,7 @@ func NewNetMonitor(name string,
 			CheckSum:     10,
 			CheckLimit:   3,
 			CheckStep:    60,
-			CheckTimeout: 3,
+			CheckTimeout: 10,
 			RecoverSum:   3,
 		},
 		MonitorName:        name,

@@ -76,13 +76,14 @@ func PingReview(info monitor.NetAlarmInfo, m *monitor.NetMonitor) {
 	var (
 		successSum = 0
 		failSum    = 0
-		isAlarm    = false
+		callAlarm  = false
 		maxFailSum = 3600 / (m.CheckStep / 2)
 		result     monitor.NetAlarmInfo
 	)
 	if maxFailSum < 10 {
 		maxFailSum = 10
 	}
+	m.Alarm()
 	for {
 		time.Sleep(time.Duration(m.CheckStep/2) * time.Second)
 		result = m.CheckFunc(info.Addr, info.Metric, monitor.BaseMonitorConfig{
@@ -99,7 +100,7 @@ func PingReview(info monitor.NetAlarmInfo, m *monitor.NetMonitor) {
 		}
 		if successSum >= m.RecoverSum {
 			m.Recover()
-			if isAlarm {
+			if callAlarm {
 				// 恢复, 发送回复请求
 				alarm(&service.AlarmMessage{
 					NodeName: os.Getenv(consts.NODE_NAME),
@@ -111,8 +112,7 @@ func PingReview(info monitor.NetAlarmInfo, m *monitor.NetMonitor) {
 			}
 			return
 		}
-		if failSum >= m.RecoverSum && !isAlarm {
-			m.Alarm()
+		if failSum >= m.RecoverSum && !callAlarm {
 			alarm(&service.AlarmMessage{
 				NodeName: os.Getenv(consts.NODE_NAME),
 				Type:     consts.SNatErrorAlarmType,
@@ -120,7 +120,7 @@ func PingReview(info monitor.NetAlarmInfo, m *monitor.NetMonitor) {
 				Value:    info.Addr,
 				Msg:      result.Msg,
 			})
-			isAlarm = true
+			callAlarm = true
 		}
 		if failSum > maxFailSum {
 			m.Recover()
