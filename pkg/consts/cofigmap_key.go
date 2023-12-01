@@ -18,6 +18,6 @@ const (
 )
 
 const (
-	Yse = "yse"
-	No  = "No"
+	Yes = "yes"
+	No  = "no"
 )

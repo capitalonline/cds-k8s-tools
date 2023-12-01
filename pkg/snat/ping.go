@@ -57,7 +57,7 @@ func PingConn(addr, key string, cfg monitor.BaseMonitorConfig, netMonitor *monit
 		pingInfo += " 可达"
 	}
 
-	log.Debugf("%v", pingInfo)
+	log.Infof("%v", pingInfo)
 
 	alarmInfo := monitor.NetAlarmInfo{
 		Metric: key,

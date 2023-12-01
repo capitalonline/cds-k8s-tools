@@ -71,7 +71,7 @@ func (m *NetMonitor) ResetCommon(cfg BaseMonitorConfig) {
 
 func (m *NetMonitor) ResetDefault(value, metric string) {
 	switch value {
-	case consts.Yse:
+	case consts.Yes:
 		m.DefaultCheckMetric = metric
 	case consts.No:
 		m.DefaultCheckMetric = ""
