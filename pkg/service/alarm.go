@@ -35,7 +35,7 @@ func AlarmCenter() {
 					AlarmInstances: alarmList,
 				}); err != nil {
 					log.Errorf("ReqAlarmOpenApi err: %s", err)
-					// return
+					return
 				}
 				alarmList = make([]AlarmInstance, 0, 100)
 			}
@@ -46,7 +46,7 @@ func AlarmCenter() {
 					AlarmInstances: alarmList,
 				}); err != nil {
 					log.Errorf("ReqAlarmOpenApi err: %s", err)
-					// return
+					return
 				}
 				alarmList = make([]AlarmInstance, 0, 100)
 			}
@@ -57,7 +57,8 @@ func AlarmCenter() {
 
 func ReqAlarmOpenApi(request CckNewAlarmReq) error {
 	b, _ := json.Marshal(request)
-	log.Debugf("req alarm openapi body %s", string(b))
+	log.Infof("req alarm openapi body %s", string(b))
+	return nil
 	req, _ := utils.NewCCKRequest(consts.SendSNatAlarmInfo, http.MethodPost, nil, bytes.NewReader(b))
 	response, err := utils.DoOpenApiRequest(req)
 	if err != nil {
