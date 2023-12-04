@@ -43,6 +43,9 @@ type NetMonitor struct {
 func (m *NetMonitor) ResetCommon(cfg BaseMonitorConfig) {
 	if cfg.CheckStep >= 30 {
 		m.CheckStep = cfg.CheckStep
+		if m.CheckStep > 3600 {
+			m.CheckStep = 3600
+		}
 	}
 	if cfg.CheckSum >= 10 {
 		m.CheckSum = cfg.CheckSum

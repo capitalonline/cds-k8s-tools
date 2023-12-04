@@ -28,6 +28,9 @@ func TelnetReview(info monitor.NetAlarmInfo, m *monitor.NetMonitor) {
 		result     monitor.NetAlarmInfo
 		maxFailSum = 3600 / (m.CheckStep / 2)
 	)
+	if maxFailSum < 10 {
+		maxFailSum = 10
+	}
 	TelnetAddrAlarmMap.Store(info.Addr, 1)
 	m.Alarm()
 	for {
