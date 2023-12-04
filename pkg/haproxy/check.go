@@ -413,6 +413,13 @@ func UpdateNodePod() error {
 		return nil
 	}
 
+	// verify customer params: tagName and ServiceName
+	err = verifyUserConfigMap(haproxyConfigs)
+	if err != nil {
+		log.Errorf("err: %s", err)
+		return nil
+	}
+
 	for _, haConfig := range haproxyConfigs.Instances {
 		err := CheckClusterIpNodeByHaConfig(haConfig, []string{})
 		if err != nil {
