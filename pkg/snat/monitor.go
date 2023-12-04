@@ -68,9 +68,9 @@ func ChangeMonitor() {
 	TelnetMonitor.ResetAddr(telnetAddr, nil)
 
 	log.Infof("change monitor success")
-	log.Infof("%#v", TelnetMonitor)
-	log.Infof("%#v", PodPingMonitor)
-	log.Infof("%#v", NodePingMonitor)
+	//log.Infof("%#v", TelnetMonitor)
+	//log.Infof("%#v", PodPingMonitor)
+	//log.Infof("%#v", NodePingMonitor)
 }
 
 func CheckSNat() {
