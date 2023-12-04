@@ -93,6 +93,16 @@ func (m *NetMonitor) ResetAddr(ext, exclude []string) {
 	m.AddrExclude = exclude
 }
 
+func (m *NetMonitor) CheckAddrExist(addr string) bool {
+	exist := false
+	for _, v := range m.AddrExt {
+		if v == addr {
+			exist = true
+		}
+	}
+	return exist
+}
+
 func (m *NetMonitor) Alarm() {
 	m.Alarming = true
 }

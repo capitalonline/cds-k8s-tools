@@ -34,6 +34,11 @@ func TelnetReview(info monitor.NetAlarmInfo, m *monitor.NetMonitor) {
 	TelnetAddrAlarmMap.Store(info.Addr, 1)
 	m.Alarm()
 	for {
+		if !m.CheckAddrExist(info.Addr) {
+			m.Recover()
+			TelnetAddrAlarmMap.Delete(info.Addr)
+			return
+		}
 		time.Sleep(time.Duration(m.CheckStep/2) * time.Second)
 		result = m.CheckFunc(info.Addr, info.Metric, monitor.BaseMonitorConfig{
 			CheckSum:     m.CheckSum,
