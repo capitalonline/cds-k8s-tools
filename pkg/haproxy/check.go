@@ -58,13 +58,13 @@ func GetCustomerHaproxyConfigs() (haproxyConfigs *HaConfigs, err error) {
 
 func verifyUserConfigMap(CustomerHaConfigs *HaConfigs) error {
 
-	log.Infof("check customer params %+v", CustomerHaConfigs)
 	verifyMap := make(map[string]bool)
 	for _, Config := range CustomerHaConfigs.Instances {
-		if verifyMap[Config.ServiceName] {
+		serviceNameSpace := fmt.Sprintf("%s/%s", Config.NameSpace, Config.ServiceName)
+		if verifyMap[serviceNameSpace] {
 			return fmt.Errorf("service Name repeated in user haproxy-instance configmap")
 		}
-		verifyMap[Config.ServiceName] = true
+		verifyMap[serviceNameSpace] = true
 
 		if verifyMap[Config.LbTag] {
 			return fmt.Errorf("lb tag repeated in user haproxy-instance configmap")
