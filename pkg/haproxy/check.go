@@ -57,6 +57,8 @@ func GetCustomerHaproxyConfigs() (haproxyConfigs *HaConfigs, err error) {
 }
 
 func verifyUserConfigMap(CustomerHaConfigs *HaConfigs) error {
+
+	log.Infof("check customer params %+v", CustomerHaConfigs)
 	verifyMap := make(map[string]bool)
 	for _, Config := range CustomerHaConfigs.Instances {
 		if verifyMap[Config.ServiceName] {
