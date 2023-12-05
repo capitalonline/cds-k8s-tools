@@ -35,10 +35,11 @@ func AlarmCenter() {
 					AlarmInstances: alarmList,
 				}); err != nil {
 					log.Errorf("ReqAlarmOpenApi err: %s", err)
-					return
+				} else {
+					alarmList = make([]AlarmInstance, 0, 100)
 				}
-				alarmList = make([]AlarmInstance, 0, 100)
 			}
+			timer.Reset(3 * time.Second)
 		case <-timer.C:
 			if len(alarmList) > 0 {
 				if err = ReqAlarmOpenApi(CckNewAlarmReq{
@@ -46,12 +47,11 @@ func AlarmCenter() {
 					AlarmInstances: alarmList,
 				}); err != nil {
 					log.Errorf("ReqAlarmOpenApi err: %s", err)
-					return
+				} else {
+					alarmList = make([]AlarmInstance, 0, 100)
 				}
-				alarmList = make([]AlarmInstance, 0, 100)
 			}
 		}
-		timer.Reset(3 * time.Second)
 	}
 }
 
