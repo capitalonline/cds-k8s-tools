@@ -58,18 +58,18 @@ func AlarmCenter() {
 func ReqAlarmOpenApi(request CckNewAlarmReq) error {
 	b, _ := json.Marshal(request)
 	log.Infof("req alarm openapi body %s", string(b))
-	// return nil  // 自测解开注释
-	req, _ := utils.NewCCKRequest(consts.SendSNatAlarmInfo, http.MethodPost, nil, bytes.NewReader(b))
+	// return nil
+	req, _ := utils.NewCCKRequest(consts.SendSNatAlarmInfoV2, http.MethodPost, nil, bytes.NewReader(b))
 	response, err := utils.DoOpenApiRequest(req)
 	if err != nil {
-		return fmt.Errorf("action[%s], DoOpenApiRequest err: %v", consts.SendSNatAlarmInfo, err)
+		return fmt.Errorf("action[%s], DoOpenApiRequest err: %v", consts.SendSNatAlarmInfoV2, err)
 	}
 	content, err := io.ReadAll(response.Body)
 	if err != nil {
-		return fmt.Errorf("action[%s] read resp body err: %v", consts.SendSNatAlarmInfo, err)
+		return fmt.Errorf("action[%s] read resp body err: %v", consts.SendSNatAlarmInfoV2, err)
 	}
 	if response.StatusCode >= 400 || !strings.Contains(string(content), consts.SuccessCode) {
-		return fmt.Errorf("action[%s] fail, status=%s, resp=%s", consts.SendSNatAlarmInfo, response.Status, string(content))
+		return fmt.Errorf("action[%s] fail, status=%s, resp=%s", consts.SendSNatAlarmInfoV2, response.Status, string(content))
 	}
 
 	return nil

@@ -34,15 +34,15 @@ type CckAlarmReq struct {
 }
 
 type CckNewAlarmReq struct {
-	ClusterId      string          `json:"ClusterId"`
-	AlarmInstances []AlarmInstance `json:"AlarmInstances"`
+	ClusterId      string          `json:"cluster_id"`
+	AlarmInstances []AlarmInstance `json:"alarm_instances"`
 }
 
 type AlarmInstance struct {
-	Type        string `json:"Type"`
-	Key         string `json:"Key"`
-	Value       string `json:"Value"`
-	Instance    string `json:"Instance"`
-	Description string `json:"Description"`
-	EventTime   string `json:"EventTime"`
+	Type        string `json:"type"`
+	Key         string `json:"key"`
+	Value       string `json:"value"`
+	Instance    string `json:"instance"`
+	Description string `json:"description"`
+	EventTime   string `json:"event_time"`
 }

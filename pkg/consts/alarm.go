@@ -1,8 +1,8 @@
 package consts
 
 const (
-	SendAlarm         = "SendAlarm"
-	SendSNatAlarmInfo = "SendSnatAlarmInfo"
+	SendAlarm           = "SendAlarm"
+	SendSNatAlarmInfoV2 = "SendSnatAlarmInfoV2"
 )
 
 const (
