@@ -25,7 +25,7 @@ func PingConn(addr, key string, cfg monitor.BaseMonitorConfig, netMonitor *monit
 		ok       = true
 		pingCmd  = fmt.Sprintf("ping %s -c %d", addr, cfg.CheckSum)
 	)
-	out, err := oscmd.Run("sh", "-c", pingCmd)
+	out, err := oscmd.CmdRun("sh", "-c", pingCmd)
 	if err != nil {
 		ok = false
 		pingInfo += " 不通"
@@ -52,9 +52,6 @@ func PingConn(addr, key string, cfg monitor.BaseMonitorConfig, netMonitor *monit
 				break
 			}
 		}
-	}
-	if ok {
-		pingInfo += " 可达"
 	}
 
 	log.Infof("%v", pingInfo)
@@ -168,6 +165,5 @@ func GetDnsFromNode() (dnsList []string) {
 			dnsList = append(dnsList, dns)
 		}
 	}
-
 	return
 }
