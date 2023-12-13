@@ -11,7 +11,8 @@ import (
 
 type NetAlarmInfo struct {
 	Metric string
-	Value  bool
+	Ok     bool
+	Value  string
 	Addr   string
 	Msg    string
 }
@@ -160,7 +161,7 @@ func (m *NetMonitor) check(metric string, wg *sync.WaitGroup) {
 func (m *NetMonitor) review(wg *sync.WaitGroup) {
 	defer wg.Done()
 	for v := range m.AlarmInfoChan {
-		if !v.Value && m.ReviewFunc != nil {
+		if !v.Ok && m.ReviewFunc != nil {
 			go m.ReviewFunc(v, m)
 		}
 	}

@@ -46,7 +46,7 @@ func TelnetReview(info monitor.NetAlarmInfo, m *monitor.NetMonitor) {
 			CheckStep:    m.CheckStep,
 			CheckTimeout: m.CheckTimeout,
 		}, nil)
-		if result.Value {
+		if result.Ok {
 			successSum++
 		} else {
 			successSum = 0
@@ -61,7 +61,8 @@ func TelnetReview(info monitor.NetAlarmInfo, m *monitor.NetMonitor) {
 					NodeName: os.Getenv(consts.NODE_NAME),
 					Type:     consts.SNatRecoverAlarmType,
 					Metric:   info.Metric,
-					Value:    info.Addr,
+					Value:    info.Value,
+					Target:   info.Addr,
 					Msg:      result.Msg,
 				}); err != nil {
 					log.Errorf("call alarm fail: %v", err)
@@ -74,7 +75,8 @@ func TelnetReview(info monitor.NetAlarmInfo, m *monitor.NetMonitor) {
 				NodeName: os.Getenv(consts.NODE_NAME),
 				Type:     consts.SNatErrorAlarmType,
 				Metric:   info.Metric,
-				Value:    info.Addr,
+				Value:    info.Value,
+				Target:   info.Addr,
 				Msg:      result.Msg,
 			})
 			if err != nil {
@@ -103,8 +105,9 @@ func TcpConn(addr, key string, cfg monitor.BaseMonitorConfig, netMonitor *monito
 		}
 		time.Sleep(1 * time.Second)
 	}
+	value := 1.0 - (float64(failSum) / float64(cfg.CheckSum))
 	tcpInfo = fmt.Sprintf("地址【%v】tcp连接成功率%0.1f%%）",
-		addr, (float64(cfg.CheckSum-failSum)/float64(cfg.CheckSum))*100)
+		addr, value*100)
 
 	log.Infof("%s", tcpInfo)
 
@@ -113,8 +116,9 @@ func TcpConn(addr, key string, cfg monitor.BaseMonitorConfig, netMonitor *monito
 	}
 	alarmInfo := monitor.NetAlarmInfo{
 		Metric: key,
-		Value:  ok,
+		Ok:     ok,
 		Addr:   addr,
+		Value:  fmt.Sprintf("%0.2f", value),
 		Msg:    tcpInfo,
 	}
 	if netMonitor != nil && !ok {

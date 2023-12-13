@@ -104,6 +104,7 @@ func alarm(msg *service.AlarmMessage) error {
 		Type:        msg.Type,
 		Key:         msg.Metric,
 		Value:       msg.Value,
+		Target:      msg.Target,
 		Description: msg.Msg,
 		Instance:    msg.NodeName,
 		EventTime:   time.Now().Format("2006-01-02 15:04:05"),

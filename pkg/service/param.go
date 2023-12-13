@@ -17,6 +17,7 @@ type AlarmMessage struct {
 	NodeName  string `json:"node_name"`
 	Type      string `json:"status"`
 	Metric    string `json:"key"`
+	Target    string `json:"target"`
 	Value     string `json:"value"`
 	Msg       string `json:"msg"`
 }
@@ -42,6 +43,7 @@ type AlarmInstance struct {
 	Type        string `json:"type"`
 	Key         string `json:"key"`
 	Value       string `json:"value"`
+	Target      string `json:"target"`
 	Instance    string `json:"instance"`
 	Description string `json:"description"`
 	EventTime   string `json:"event_time"`

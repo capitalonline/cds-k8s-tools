@@ -21,9 +21,11 @@ var (
 
 func PingConn(addr, key string, cfg monitor.BaseMonitorConfig, netMonitor *monitor.NetMonitor) monitor.NetAlarmInfo {
 	var (
-		pingInfo = fmt.Sprintf("ping【%s】: ", addr)
-		ok       = true
-		pingCmd  = fmt.Sprintf("ping %s -c %d", addr, cfg.CheckSum)
+		pingInfo         = fmt.Sprintf("ping【%s】: ", addr)
+		ok               = true
+		pingCmd          = fmt.Sprintf("ping %s -c %d", addr, cfg.CheckSum)
+		left     float64 = 1.0
+		right    float64 = float64(cfg.CheckLimit) / float64(cfg.CheckSum)
 	)
 	out, err := oscmd.CmdRun("sh", "-c", pingCmd)
 	if err != nil {
@@ -39,8 +41,7 @@ func PingConn(addr, key string, cfg monitor.BaseMonitorConfig, netMonitor *monit
 					if strings.Contains(lossData, "packet loss") {
 						str := strings.ReplaceAll(strings.TrimSpace(lossData), "% packet loss", "")
 						num, _ := strconv.ParseFloat(str, 64)
-						left := num / 100
-						right := float64(cfg.CheckLimit) / float64(cfg.CheckSum)
+						left = num / 100
 						if left >= right {
 							ok = false
 						} else {
@@ -58,8 +59,9 @@ func PingConn(addr, key string, cfg monitor.BaseMonitorConfig, netMonitor *monit
 
 	alarmInfo := monitor.NetAlarmInfo{
 		Metric: key,
-		Value:  ok,
+		Ok:     ok,
 		Addr:   addr,
+		Value:  fmt.Sprintf("%0.2f", left),
 		Msg:    pingInfo,
 	}
 
@@ -96,7 +98,7 @@ func PingReview(info monitor.NetAlarmInfo, m *monitor.NetMonitor) {
 			CheckStep:    m.CheckStep,
 			CheckTimeout: m.CheckTimeout,
 		}, nil)
-		if result.Value {
+		if result.Ok {
 			successSum++
 		} else {
 			successSum = 0
@@ -110,7 +112,8 @@ func PingReview(info monitor.NetAlarmInfo, m *monitor.NetMonitor) {
 					NodeName: os.Getenv(consts.NODE_NAME),
 					Type:     consts.SNatRecoverAlarmType,
 					Metric:   info.Metric,
-					Value:    info.Addr,
+					Value:    info.Value,
+					Target:   info.Addr,
 					Msg:      result.Msg,
 				}); err != nil {
 					log.Errorf("call alarm fail: %v", err)
@@ -123,7 +126,8 @@ func PingReview(info monitor.NetAlarmInfo, m *monitor.NetMonitor) {
 				NodeName: os.Getenv(consts.NODE_NAME),
 				Type:     consts.SNatErrorAlarmType,
 				Metric:   info.Metric,
-				Value:    info.Addr,
+				Value:    info.Value,
+				Target:   info.Addr,
 				Msg:      result.Msg,
 			})
 			if err != nil {

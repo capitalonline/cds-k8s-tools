@@ -151,6 +151,7 @@ func UpdateGw() (err error) {
 			Type:     consts.SNatErrorAlarmType,
 			Metric:   consts.GatewayFileErr,
 			Value:    "",
+			Target:   "",
 			Msg:      err.Error(),
 		})
 		return nil
