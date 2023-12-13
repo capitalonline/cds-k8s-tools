@@ -47,13 +47,13 @@ func (m *NetMonitor) ResetCommon(cfg BaseMonitorConfig) {
 			m.CheckStep = 3600
 		}
 	}
-	if cfg.CheckSum >= 10 {
+	if cfg.CheckSum >= 3 {
 		m.CheckSum = cfg.CheckSum
 		if m.CheckSum > 30 {
 			m.CheckSum = 30
 		}
 	}
-	if cfg.CheckLimit >= 3 {
+	if cfg.CheckLimit >= 1 {
 		m.CheckLimit = cfg.CheckLimit
 		if m.CheckLimit > 30 {
 			m.CheckLimit = 30
