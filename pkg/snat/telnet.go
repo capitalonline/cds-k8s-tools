@@ -33,6 +33,7 @@ func TelnetReview(info monitor.NetAlarmInfo, m *monitor.NetMonitor) {
 	}
 	TelnetAddrAlarmMap.Store(info.Addr, 1)
 	m.Alarm()
+	log.Infof("[%s]%s 进入复查阶段", info.Metric, info.Addr)
 	for {
 		if !m.CheckAddrExist(info.Addr) {
 			m.Recover()

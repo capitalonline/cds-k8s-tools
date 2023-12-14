@@ -86,6 +86,7 @@ func PingReview(info monitor.NetAlarmInfo, m *monitor.NetMonitor) {
 		maxFailSum = 10
 	}
 	m.Alarm()
+	log.Infof("[%s]%s 进入复查阶段", info.Metric, info.Addr)
 	for {
 		if !m.CheckAddrExist(info.Addr) {
 			m.Recover()

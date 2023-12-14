@@ -115,5 +115,6 @@ func alarm(msg *service.AlarmMessage) error {
 	if err != nil {
 		return fmt.Errorf("request cds-alarm-service service err: %v", err)
 	}
+	log.Infof("alarm success: %#v", req)
 	return nil
 }
