@@ -88,9 +88,11 @@ func PingReview(info monitor.NetAlarmInfo, m *monitor.NetMonitor) {
 	m.Alarm()
 	log.Infof("[%s]%s(%v)进入复查阶段", info.Metric, info.Addr, info.Value)
 	for {
-		if !m.CheckAddrExist(info.Addr) {
-			m.Recover()
-			return
+		if info.Metric != consts.CheckPodDefaultPing && info.Metric != consts.CheckNodeDns {
+			if !m.CheckAddrExist(info.Addr) {
+				m.Recover()
+				return
+			}
 		}
 		time.Sleep(time.Duration(m.CheckStep/2) * time.Second)
 		result = m.CheckFunc(info.Addr, info.Metric, monitor.BaseMonitorConfig{
