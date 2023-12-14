@@ -62,7 +62,7 @@ func TelnetReview(info monitor.NetAlarmInfo, m *monitor.NetMonitor) {
 					NodeName: os.Getenv(consts.NODE_NAME),
 					Type:     consts.SNatRecoverAlarmType,
 					Metric:   info.Metric,
-					Value:    info.Value,
+					Value:    result.Value,
 					Target:   info.Addr,
 					Msg:      result.Msg,
 				}); err != nil {
@@ -76,7 +76,7 @@ func TelnetReview(info monitor.NetAlarmInfo, m *monitor.NetMonitor) {
 				NodeName: os.Getenv(consts.NODE_NAME),
 				Type:     consts.SNatErrorAlarmType,
 				Metric:   info.Metric,
-				Value:    info.Value,
+				Value:    result.Value,
 				Target:   info.Addr,
 				Msg:      result.Msg,
 			})

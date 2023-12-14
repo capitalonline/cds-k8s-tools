@@ -71,7 +71,7 @@ func (m *NetMonitor) ResetCommon(cfg BaseMonitorConfig) {
 			m.CheckTimeout = cfg.CheckTimeout
 		}
 	}
-	if cfg.RecoverSum > 1 {
+	if cfg.RecoverSum > 0 {
 		m.RecoverSum = cfg.RecoverSum
 		if m.RecoverSum > 30 {
 			m.RecoverSum = 30
