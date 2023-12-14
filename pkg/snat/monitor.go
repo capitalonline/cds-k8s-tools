@@ -80,6 +80,7 @@ func CheckSNat() {
 }
 
 func alarm(msg *service.AlarmMessage) error {
+	log.Infof("[%v]%v alarm start: ", msg.Metric, msg.Target)
 	alarmService, err := client.Sa.CoreV1().Services(consts.AlarmPodNamespace).
 		List(context.Background(), metav1.ListOptions{})
 	if err != nil {
