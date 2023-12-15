@@ -111,11 +111,7 @@ data:
     snat.check.recover = 3
     snat.check.timeout = 10
     snat.check.node_ping_dns = no
-    snat.check.pod_ping_default = yes    
-    snat.check.pod_ping_ext = ""
-    snat.check.node_ping_ext = ""
-    snat.check.node_ping_exclude = ""
-    snat.check.pod_telnet_ext = ""
+    snat.check.pod_ping_default = yes
 ---
 apiVersion: apps/v1
 kind: DaemonSet
