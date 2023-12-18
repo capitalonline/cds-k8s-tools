@@ -3,6 +3,7 @@ package snat
 import (
 	"cds-k8s-tools/pkg/client"
 	"cds-k8s-tools/pkg/config"
+	"cds-k8s-tools/pkg/consts"
 	"cds-k8s-tools/pkg/oscmd"
 	"cds-k8s-tools/pkg/service"
 	"fmt"
@@ -15,7 +16,6 @@ import (
 )
 
 const (
-	NodeNameKey                = "NODE_NAME"
 	AnnotationSNatKeyPre       = "snat.beta.kubernetes.io/"
 	AnnotationSNatKeyFix       = "snat-ip"
 	AnnotationSNatDefaultValue = "default"
@@ -40,9 +40,9 @@ var (
 )
 
 func init() {
-	nodeName = os.Getenv(NodeNameKey)
+	nodeName = os.Getenv(consts.NODE_NAME)
 	if nodeName == "" {
-		panic(fmt.Errorf("env value for (%s) blanked", NodeNameKey))
+		panic(fmt.Errorf("env value for (%s) blanked", consts.NODE_NAME))
 	}
 
 	sNatKey = fmt.Sprintf("%s%s", AnnotationSNatKeyPre, AnnotationSNatKeyFix)
@@ -73,14 +73,13 @@ func getGwFromConf() (sNatIP string) {
 		log.Errorf("annotation key(%s) not found in node(%s)", sNatKey, nodeName)
 		return
 	}
-	sNatRoleKey := fmt.Sprintf("default.%s%s", AnnotationSNatKeyPre, forSNatRole)
-	sNatIP = conf.GetKeyString(sNatRoleKey)
+	sNatRoleKey := fmt.Sprintf("%s%s", AnnotationSNatKeyPre, forSNatRole)
+	sNatIP = conf.GetKeyString(consts.DefaultConfig, sNatRoleKey)
 	return
 }
 
 func getIntervalFromConf() int {
-	refreshIntervalKey := fmt.Sprintf("default.%s", RefreshInterval)
-	return conf.GetKeyInt(refreshIntervalKey)
+	return conf.GetKeyInt(consts.DefaultConfig, RefreshInterval)
 }
 
 func mastGetGwFromNode() (filename, line, gw string, isNetplan bool, err error) {
@@ -147,9 +146,12 @@ func UpdateGw() (err error) {
 	filename, line, gw, isNetplan, err = mastGetGwFromNode()
 	if err != nil {
 		// 告警
-		alarm(&service.AlarmMessage{
-			NodeName: os.Getenv(NodeNameKey),
-			Status:   "error",
+		_ = alarm(&service.AlarmMessage{
+			NodeName: os.Getenv(consts.NODE_NAME),
+			Type:     consts.SNatErrorAlarmType,
+			Metric:   consts.GatewayFileErr,
+			Value:    "",
+			Target:   "",
 			Msg:      err.Error(),
 		})
 		return nil
@@ -190,7 +192,7 @@ func UpdateGw() (err error) {
 
 func NewEventGw(name string) {
 	if name != "timer" {
-		SMonitor.ChangeMonitor()
+		ChangeMonitor()
 	}
 	log.Infof("starting event for update gw by %s", name)
 	if err := UpdateGw(); err != nil {
@@ -216,7 +218,7 @@ func Run() {
 	conf.OnConfChange(NewEventGw)
 	conf.WatchConf()
 	wg := new(sync.WaitGroup)
-	wg.Add(4)
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		for {
@@ -237,8 +239,7 @@ func Run() {
 			}
 		}
 	}()
-	go CheckWorkerResult(wg)
-	go CheckPodResult(wg)
-	go CheckSNat(wg)
+
+	CheckSNat()
 	wg.Wait()
 }
