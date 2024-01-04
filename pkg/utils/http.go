@@ -27,6 +27,7 @@ type CloudRequest struct {
 
 const (
 	cckProductType   = "cck"
+	PaasProductType  = "lb"
 	version          = "2019-08-08"
 	signatureVersion = "1.0"
 	signatureMethod  = "HMAC-SHA1"

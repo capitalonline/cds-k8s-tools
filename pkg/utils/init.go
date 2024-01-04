@@ -14,6 +14,12 @@ var (
 	AccessKeySecret string
 )
 
+const (
+	DescribeHaInstance           = "DescribeLoadBalancers"
+	DescribeLoadBalancerStrategy = "DescribeLoadBalancerStrategys"
+	ModifyLoadBalancerStrategy   = "ModifyLoadBalancerStrategys"
+)
+
 func IsAccessKeySet() bool {
 	return AccessKeyID != "" && AccessKeySecret != ""
 }

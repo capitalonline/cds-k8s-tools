@@ -30,7 +30,7 @@ func init() {
 }
 
 func ReloadIntervalFromConf(key string) int {
-	return conf.GetKeyInt(key)
+	return conf.GetKeyInt("", key)
 }
 
 func AllEventHandle(name string) {

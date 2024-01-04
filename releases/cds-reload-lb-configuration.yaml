@@ -80,17 +80,20 @@ spec:
                 secretKeyRef:
                   name: cck-secrets
                   key: access_key_secret
-          image: registry-bj.capitalonline.net/test/cds-ha-configuration:v1.4
+          image: registry-bj.capitalonline.net/cck/cds-ha-configuration:v1.0
           name: cds-reload-lb-configuration
           imagePullPolicy: Always
           volumeMounts:
             - mountPath: /reload-lb/
               name: reload-lb-system-config
+      nodeSelector:
+        node-role.kubernetes.io/master: ""
       tolerations:
         - effect: NoSchedule
           key: node-role.kubernetes.io/master
           operator: Exists
         - effect: NoSchedule
+          operator: Exists
           key: node-role.cck.net/infra
       restartPolicy: Always
       volumes:
