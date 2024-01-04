@@ -48,14 +48,14 @@ func (c *Conf) OnConfChange(fc func(name string)) {
 func (c *Conf) WatchConf() {
 	c.WatchConfig()
 }
-func (c *Conf) HasKey(k string) bool {
-	return c.IsSet(k)
+func (c *Conf) HasKey(head, k string) bool {
+	return c.IsSet(head + k)
 }
 
-func (c *Conf) GetKeyString(k string) string {
-	return c.GetString(k)
+func (c *Conf) GetKeyString(head, k string) string {
+	return c.GetString(head + k)
 }
 
-func (c *Conf) GetKeyInt(k string) int {
-	return c.GetInt(k)
+func (c *Conf) GetKeyInt(head, k string) int {
+	return c.GetInt(head + k)
 }

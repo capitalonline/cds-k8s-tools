@@ -8,7 +8,9 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 )
 
-func GetNode(name string) *v1.Node { return Sa.GetNode(name) }
+func GetNode(name string) *v1.Node {
+	return Sa.GetNode(name)
+}
 
 func (sa *ServiceAccount) GetNode(name string) *v1.Node {
 	nodeRef, err := sa.CoreV1().Nodes().Get(context.TODO(), name, metav1.GetOptions{})

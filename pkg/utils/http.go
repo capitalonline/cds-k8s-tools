@@ -25,6 +25,14 @@ type CloudRequest struct {
 	body        io.Reader
 }
 
+const (
+	cckProductType   = "cck"
+	version          = "2019-08-08"
+	signatureVersion = "1.0"
+	signatureMethod  = "HMAC-SHA1"
+	timeStampFormat  = "2006-01-02T15:04:05Z"
+)
+
 func NewCCKRequest(action, method string, params map[string]string, body io.Reader) (*CloudRequest, error) {
 	return NewRequest(action, method, params, cckProductType, body)
 }

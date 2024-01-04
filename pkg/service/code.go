@@ -8,6 +8,7 @@ type CommonResp struct {
 
 var (
 	Success           = CommonResp{"Success", "成功", nil}
+	ParamError        = CommonResp{"ParamError", "参数错误", nil}
 	AlarmServiceError = CommonResp{"AlarmServiceError", "告警服务异常", nil}
 	AlarmServiceWarn  = CommonResp{"AlarmServiceWarn", "告警服务错误", nil}
 )

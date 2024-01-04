@@ -22,60 +22,55 @@ The support for other will be added soon.
 
 
 
-## cds-snat-configuration upgrading v1.1.4 
+## cds-snat-configuration upgrading v2.0.0
 
 ### snat-configmap配置
-
-编辑`snat-configmap`，并保存
 
 ```
 kubectl edit cm snat-configmap -n kube-system
 ```
 
-此版本configmap增加四个字段，分别是
+### 基础监控配置
 
-- `snat.check.pod_ping_ext`：检测pod出网能力需要ping的ip/域名
-- `snat.check.pod_ping_exclude`：检测pod出网能力需要过滤掉ping的ip/域名
-- `snat.check.node_ping_ext`：检测node出网能力需要ping的ip/域名
-- `snat.check.node_ping_exclude`：检测node出网能力需要过滤掉ping的ip/域名
+| key                | value                                                        |
+| ------------------ | ------------------------------------------------------------ |
+| snat.check.step    | 检查频率，单位s，默认值为60，最小值为30，最大值为3600，输入必须为整数 |
+| snat.check.sum     | 一轮检查总次数：默认值为10，最小值为3，最大值为30，输入值必须为整数 |
+| snat.check.limit   | 一轮检查失败次数：默认值为3，最小值为1，最大值为30，不能大于一轮检查总次数，输入值必须为整数 |
+| snat.check.recover | 允许异常持续周期：默认值为3                                  |
+| snat.check.timeout | 连接超时时长：默认值10，不可修改                             |
 
-**注意：**
+### 指标配置
 
-1. 支持批量，采用**英文逗号**分割`,`        
-2.  若不需要相应配置，直接**注释**或者**不写**即可，示例如下：
+| key                          | value                                                        |
+| ---------------------------- | ------------------------------------------------------------ |
+| snat.check.node_ping_ext     | 基于node检测ICMP检测地址，输入合法ip/域名，支持批量，采用**英文逗号**`,`分割，默认空 |
+| snat.check.node_ping_exclude | 基于node检测ICMP排除地址，输入合法ip/域名，支持批量，采用**英文逗号**`,`分割，默认空 |
+| snat.check.pod_telnet_ext    | 基于pod检测TCP检测地址，输入合法ip/域名，支持批量，采用**英文逗号**`,`分割，若存在相同地址的多端口检查，可以采用冒号分割，可查看下面示例，默认空 |
+| snat.check.pod_ping_ext      | 基于pod检测ICMP检测地址，输入合法ip/域名，支持批量，采用**英文逗号**`,`分割，默认空 |
+| snat.check.pod_ping_default  | pod默认出网能力检查，值：yes/no，默认yes                     |
+| snat.check.node_ping_dns     | node默认dns检查，值：yes/no，默认no                          |
 
-```
-snat.check.pod_ping_ext = www.163.com,www.baidu.com
-# snat.check.pod_ping_exclude = www.163.com
-# snat.check.node_ping_ext = 202.103.0.117
-snat.check.node_ping_exclude = 8.8.4.4,8.8.8.8
-```
+**示例**：
 
-**下面列出常用配置场景：**
-
-#### 场景一：过滤 ping dns 8.8.4.4
-
-在data内容中，新增一个字段`snat.check.node_ping_exclude = 8.8.4.4`，示例如下：
-
-```
+```yaml
+apiVersion: v1
 data:
-  snat-config: |
+  snat-config: |+
     [default]
-    ...
-    ...
-    ...
-    snat.check.node_ping_exclude = 8.8.4.4
+    snat.check.step = 60
+    snat.check.sum = 10
+    snat.check.limit = 5
+    snat.check.recover = 3
+    snat.check.timeout = 3
+    snat.check.node_ping_ext = 255.255.255.255
+    snat.check.node_ping_exclude = 8.8.4.4,8.8.8.8
+    snat.check.pod_telnet_ext = www.xxx.com:80:90
+    snat.check.pod_ping_ext = 1.1.1.1
+    snat.check.pod_ping_default = yes
+    snat.check.node_ping_dns = no
 ```
 
-#### 场景二：pod增加更多需要ping的域名
 
-```
-data:
-  snat-config: |
-    [default]
-    ...
-    ...
-    ...
-   snat.check.pod_ping_ext = www.163.com,www.baidu.com,www.google.com
-```
+
 

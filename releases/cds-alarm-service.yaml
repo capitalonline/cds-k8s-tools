@@ -115,7 +115,7 @@ spec:
       dnsPolicy: Default
       containers:
         - name: cds-alarm-service
-          image: capitalonline/cds-alarm-service:v1.1.0
+          image: capitalonline/cds-alarm-service:v2.0.0
           imagePullPolicy: Always
           env:
             - name: NODE_NAME

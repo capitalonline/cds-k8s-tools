@@ -15,7 +15,10 @@ type AlarmReq struct {
 type AlarmMessage struct {
 	ClusterId string `json:"cluster_id"`
 	NodeName  string `json:"node_name"`
-	Status    string `json:"status"` // error  recover
+	Type      string `json:"status"`
+	Metric    string `json:"key"`
+	Target    string `json:"target"`
+	Value     string `json:"value"`
 	Msg       string `json:"msg"`
 }
 
@@ -29,4 +32,19 @@ type CckAlarmReq struct {
 	AlarmGroup string `json:"alarm_group,omitempty"`
 	Ip         string `json:"ip"`
 	Tag1       string `json:"tag1"`
+}
+
+type CckNewAlarmReq struct {
+	ClusterId      string          `json:"cluster_id"`
+	AlarmInstances []AlarmInstance `json:"alarm_instances"`
+}
+
+type AlarmInstance struct {
+	Type        string `json:"type"`
+	Key         string `json:"key"`
+	Value       string `json:"value"`
+	Target      string `json:"target"`
+	Instance    string `json:"instance"`
+	Description string `json:"description"`
+	EventTime   string `json:"event_time"`
 }
