@@ -143,18 +143,26 @@ func ModifyHaproxyConfigCLusterMode(instanceId string, haInfo HaConfigInfo, newN
 
 	log.Infof("Svc.ExternalTrafficPolicy: Cluster, current node ip: %+v", newNodeIpList)
 
-	if OldInstancePolicy, ok := InstanceIdPolicyMap.Load(instanceId); ok {
-		log.Infof("get cache in InstanceIdPolicyMap by instanceId: %s", instanceId)
-		InstancePolicy = OldInstancePolicy.(*api.HaStrategyInfoData)
-	} else {
-		req := map[string]string{"InstanceUuid": instanceId}
-		HaInstancePolicy, err := api.DescribeLoadBalancerStrategy(req)
-		if err != nil {
-			log.Errorf("DescribeLoadBalancerStrategy failed: %s", err)
-			return
-		}
-		InstancePolicy = HaInstancePolicy
+	//if OldInstancePolicy, ok := InstanceIdPolicyMap.Load(instanceId); ok {
+	//	log.Infof("get cache in InstanceIdPolicyMap by instanceId: %s", instanceId)
+	//	InstancePolicy = OldInstancePolicy.(*api.HaStrategyInfoData)
+	//} else {
+	//	req := map[string]string{"InstanceUuid": instanceId}
+	//	HaInstancePolicy, err := api.DescribeLoadBalancerStrategy(req)
+	//	if err != nil {
+	//		log.Errorf("DescribeLoadBalancerStrategy failed: %s", err)
+	//		return
+	//	}
+	//	InstancePolicy = HaInstancePolicy
+	//}
+
+	req := map[string]string{"InstanceUuid": instanceId}
+	HaInstancePolicy, err := api.DescribeLoadBalancerStrategy(req)
+	if err != nil {
+		log.Errorf("DescribeLoadBalancerStrategy failed: %s", err)
+		return
 	}
+	InstancePolicy = HaInstancePolicy
 
 	// all user only uses http policies
 	httpListeners := InstancePolicy.HttpListeners
@@ -225,18 +233,26 @@ func ModifyHaproxyConfigLocalMode(instanceId string, haInfo HaConfigInfo, newNod
 
 	log.Infof("Svc.ExternalTrafficPolicy: Local, current node ip: %+v", newNodeIpList)
 
-	if OldInstancePolicy, ok := InstanceIdPolicyMap.Load(instanceId); ok {
-		log.Infof("get cache in InstanceIdPolicyMap by instanceId: %s", instanceId)
-		InstancePolicy = OldInstancePolicy.(*api.HaStrategyInfoData)
-	} else {
-		req := map[string]string{"InstanceUuid": instanceId}
-		HaInstancePolicy, err := api.DescribeLoadBalancerStrategy(req)
-		if err != nil {
-			log.Errorf("describeLoadBalancerStrategy failed: %s", err)
-			return
-		}
-		InstancePolicy = HaInstancePolicy
+	//if OldInstancePolicy, ok := InstanceIdPolicyMap.Load(instanceId); ok {
+	//	log.Infof("get cache in InstanceIdPolicyMap by instanceId: %s", instanceId)
+	//	InstancePolicy = OldInstancePolicy.(*api.HaStrategyInfoData)
+	//} else {
+	//	req := map[string]string{"InstanceUuid": instanceId}
+	//	HaInstancePolicy, err := api.DescribeLoadBalancerStrategy(req)
+	//	if err != nil {
+	//		log.Errorf("describeLoadBalancerStrategy failed: %s", err)
+	//		return
+	//	}
+	//	InstancePolicy = HaInstancePolicy
+	//}
+
+	req := map[string]string{"InstanceUuid": instanceId}
+	HaInstancePolicy, err := api.DescribeLoadBalancerStrategy(req)
+	if err != nil {
+		log.Errorf("describeLoadBalancerStrategy failed: %s", err)
+		return
 	}
+	InstancePolicy = HaInstancePolicy
 
 	// all user only uses http policies
 	httpListeners := InstancePolicy.HttpListeners
