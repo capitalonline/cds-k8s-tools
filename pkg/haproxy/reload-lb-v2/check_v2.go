@@ -1,14 +1,12 @@
-package haproxy
+package reload_lb_v2
 
 import (
 	"cds-k8s-tools/pkg/client"
 	"cds-k8s-tools/pkg/haproxy/api"
 	"encoding/json"
 	"fmt"
-	"github.com/gogf/gf/v2/util/gconv"
 	log "github.com/sirupsen/logrus"
 	"reflect"
-	"strconv"
 	"sync"
 )
 
@@ -21,7 +19,7 @@ const (
 
 var (
 	SvcNameInstanceIdsMap = new(sync.Map)
-	InstanceIdPolicyMap   = new(sync.Map)
+	//InstanceIdPolicyMap   = new(sync.Map)
 )
 
 type HaConfigs struct {
@@ -131,216 +129,6 @@ func UpdateHaproxyInstance() error {
 	}
 
 	return nil
-}
-
-func ModifyHaproxyConfigCLusterMode(instanceId string, haInfo HaConfigInfo, newNodeIpList []string) {
-	var (
-		InstancePolicy         *api.HaStrategyInfoData
-		oldNodeIpList          []string
-		newBackendServers      []api.BackendServer
-		ChangeNewHttpListeners []api.HttpListener
-	)
-
-	log.Infof("Svc.ExternalTrafficPolicy: Cluster, current node ip: %+v", newNodeIpList)
-
-	//if OldInstancePolicy, ok := InstanceIdPolicyMap.Load(instanceId); ok {
-	//	log.Infof("get cache in InstanceIdPolicyMap by instanceId: %s", instanceId)
-	//	InstancePolicy = OldInstancePolicy.(*api.HaStrategyInfoData)
-	//} else {
-	//	req := map[string]string{"InstanceUuid": instanceId}
-	//	HaInstancePolicy, err := api.DescribeLoadBalancerStrategy(req)
-	//	if err != nil {
-	//		log.Errorf("DescribeLoadBalancerStrategy failed: %s", err)
-	//		return
-	//	}
-	//	InstancePolicy = HaInstancePolicy
-	//}
-
-	req := map[string]string{"InstanceUuid": instanceId}
-	HaInstancePolicy, err := api.DescribeLoadBalancerStrategy(req)
-	if err != nil {
-		log.Errorf("DescribeLoadBalancerStrategy failed: %s", err)
-		return
-	}
-	InstancePolicy = HaInstancePolicy
-
-	// all user only uses http policies
-	httpListeners := InstancePolicy.HttpListeners
-	if len(httpListeners) == 0 {
-		log.Errorf("haproxy instance don't have http type policy")
-		return
-	}
-
-	oldBackendServers := httpListeners[0].BackendServer
-	for _, backendServer := range oldBackendServers {
-		oldNodeIpList = append(oldNodeIpList, backendServer.IP)
-	}
-
-	if equal := reflect.DeepEqual(oldNodeIpList, newNodeIpList); equal {
-		InstanceIdPolicyMap.Store(instanceId, InstancePolicy)
-		log.Infof("*** end *** haproxy backend server no changed, continue")
-		return
-	}
-
-	for _, nodeIp := range newNodeIpList {
-		newBackendServers = append(newBackendServers, api.BackendServer{
-			IP:      nodeIp,
-			Port:    haInfo.NodePort,
-			Weight:  "1",
-			MaxConn: haInfo.MaxConn,
-		})
-	}
-
-	for _, policy := range InstancePolicy.HttpListeners {
-		for _, port := range haInfo.ListenerPort {
-			if policy.ListenerPort == port {
-				policy.BackendServer = newBackendServers
-			}
-		}
-		ChangeNewHttpListeners = append(ChangeNewHttpListeners, policy)
-	}
-	InstancePolicy.HttpListeners = ChangeNewHttpListeners
-
-	// send to task for update haproxy policy
-	modifyParams := api.ModifyHaStrategyReq{
-		InstanceUuid:       instanceId,
-		HaStrategyInfoData: InstancePolicy,
-	}
-
-	res, err := api.ModifyLoadBalancerStrategy(modifyParams)
-	if err != nil {
-		log.Errorf("send ModifyLoadBalancerStrategy task failed: %s", err)
-		return
-	}
-
-	// cache can be updated only after the task is successfully
-	InstanceIdPolicyMap.Store(instanceId, InstancePolicy)
-
-	log.Infof("taskId: %s sent successfully", res.TaskId)
-	return
-
-}
-
-func ModifyHaproxyConfigLocalMode(instanceId string, haInfo HaConfigInfo, newNodeIpList []string, NewNodeIpPodMap map[string]int64) {
-
-	var (
-		UseOldHaConfig         = true
-		OldNodeIpPodMap        = make(map[string]int64)
-		newBackendServers      []api.BackendServer
-		ChangeNewHttpListeners []api.HttpListener
-		InstancePolicy         *api.HaStrategyInfoData
-	)
-
-	log.Infof("Svc.ExternalTrafficPolicy: Local, current node ip: %+v", newNodeIpList)
-
-	//if OldInstancePolicy, ok := InstanceIdPolicyMap.Load(instanceId); ok {
-	//	log.Infof("get cache in InstanceIdPolicyMap by instanceId: %s", instanceId)
-	//	InstancePolicy = OldInstancePolicy.(*api.HaStrategyInfoData)
-	//} else {
-	//	req := map[string]string{"InstanceUuid": instanceId}
-	//	HaInstancePolicy, err := api.DescribeLoadBalancerStrategy(req)
-	//	if err != nil {
-	//		log.Errorf("describeLoadBalancerStrategy failed: %s", err)
-	//		return
-	//	}
-	//	InstancePolicy = HaInstancePolicy
-	//}
-
-	req := map[string]string{"InstanceUuid": instanceId}
-	HaInstancePolicy, err := api.DescribeLoadBalancerStrategy(req)
-	if err != nil {
-		log.Errorf("describeLoadBalancerStrategy failed: %s", err)
-		return
-	}
-	InstancePolicy = HaInstancePolicy
-
-	// all user only uses http policies
-	httpListeners := InstancePolicy.HttpListeners
-	if len(httpListeners) == 0 {
-		log.Errorf("haproxy instance don't have http type policy")
-		return
-	}
-
-	// compute old backend for NodeIpMap
-	oldBackendServers := httpListeners[0].BackendServer
-	for _, backendServer := range oldBackendServers {
-		num, _ := strconv.ParseInt(backendServer.Weight, 10, 64)
-		OldNodeIpPodMap[backendServer.IP] = num
-	}
-
-	log.Infof("old nodeIp podNum map: %+v", OldNodeIpPodMap)
-	log.Infof("new nodeIp podNum map: %+v", NewNodeIpPodMap)
-
-	for _, nodeIp := range newNodeIpList {
-		newBackendServers = append(newBackendServers, api.BackendServer{
-			IP:   nodeIp,
-			Port: haInfo.NodePort,
-			// Weight default value: 1
-			Weight:  gconv.String(NewNodeIpPodMap[nodeIp]),
-			MaxConn: haInfo.MaxConn,
-		})
-	}
-
-	log.Infof("old haproxy backend instance servers: %+v", oldBackendServers)
-	log.Infof("new haproxy backend instance servers: %+v", newBackendServers)
-
-	if len(oldBackendServers) == len(newBackendServers) {
-		for _, newServerIp := range newNodeIpList {
-
-			// Check whether new backend servers exists
-			if _, ok := OldNodeIpPodMap[newServerIp]; !ok {
-				UseOldHaConfig = false
-				log.Infof("new backend server exists, send task to update Haproxy policy.")
-				break
-			}
-
-			// Check whether the weight of the backend server changes
-			if NewNodeIpPodMap[newServerIp] != OldNodeIpPodMap[newServerIp] {
-				UseOldHaConfig = false
-				log.Infof("backend server weight changed, send task to update Haproxy policy.")
-				break
-			}
-
-		}
-	} else {
-		UseOldHaConfig = false
-		log.Infof("the number of backend servers is changed, send task to update Haproxy policy.")
-	}
-
-	if !UseOldHaConfig {
-		// Generate the latest update haproxy params
-		for _, policy := range InstancePolicy.HttpListeners {
-			for _, port := range haInfo.ListenerPort {
-				if policy.ListenerPort == port {
-					policy.BackendServer = newBackendServers
-				}
-			}
-			ChangeNewHttpListeners = append(ChangeNewHttpListeners, policy)
-		}
-		InstancePolicy.HttpListeners = ChangeNewHttpListeners
-		log.Infof("***begin to update harproxy instance, latest policy params: %+v", InstancePolicy)
-
-		// send to task for update haproxy policy
-		modifyParams := api.ModifyHaStrategyReq{
-			InstanceUuid:       instanceId,
-			HaStrategyInfoData: InstancePolicy,
-		}
-
-		res, err := api.ModifyLoadBalancerStrategy(modifyParams)
-		if err != nil {
-			log.Errorf("send ModifyLoadBalancerStrategy task failed: %s", err)
-			return
-		}
-
-		// cache can be updated only after the task is successfully
-		InstanceIdPolicyMap.Store(instanceId, InstancePolicy)
-
-		log.Infof("taskId: %s sent successfully", res.TaskId)
-		return
-	}
-
-	InstanceIdPolicyMap.Store(instanceId, InstancePolicy)
-	log.Infof("***no need to update the backend server by haInstanceId: %s", instanceId)
 }
 
 func CheckClusterIpNodeByHaConfig(config HaConfigInfo, NewSvcInstancesIds []string) error {

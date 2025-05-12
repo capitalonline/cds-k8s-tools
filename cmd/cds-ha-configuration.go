@@ -1,11 +1,11 @@
 package main
 
 import (
-	"cds-k8s-tools/pkg/haproxy"
+	reloadlbv1 "cds-k8s-tools/pkg/haproxy/reload-lb-v1"
 	"cds-k8s-tools/pkg/utils"
 )
 
 func main() {
 	utils.SetLogAttribute("cds-ha-configuration")
-	haproxy.Run()
+	reloadlbv1.Run()
 }

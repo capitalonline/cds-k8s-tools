@@ -1,4 +1,4 @@
-package haproxy
+package reload_lb_v1
 
 import (
 	"cds-k8s-tools/pkg/config"
