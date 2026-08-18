@@ -9,7 +9,7 @@ const (
 	ConfigFileName              = "pod-alarm-config"
 	ConfigDir                   = "/pod-alarm/"
 	ConfigFmtType               = "ini"
-	DefaultConfig               = "default"
+	DefaultConfig               = "default."
 	CheckStep                   = "pod.check.step"
 	MonitorNamespaces           = "pod.monitor.namespaces"
 	PendingThresholdMinutes     = "pod.pending.threshold.minutes"

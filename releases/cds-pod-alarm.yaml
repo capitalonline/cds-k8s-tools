@@ -43,12 +43,12 @@ data:
     [default]
     # 检测间隔(秒)
     pod.check.step = 120
-    # 监控命名空间，逗号分隔，可多选
-    pod.monitor.namespaces = ads
+    # 监控命名空间，逗号分隔，可多选，留空则监控全部
+    pod.monitor.namespaces = default
     # Pending 状态告警阈值(分钟)
-    pod.pending.threshold.minutes = 15
+    pod.pending.threshold.minutes = 1
     # Terminating 状态告警阈值(分钟)
-    pod.terminating.threshold.minutes = 2
+    pod.terminating.threshold.minutes = 1
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -67,16 +67,16 @@ spec:
     spec:
       serviceAccountName: cds-pod-alarm-sa
       nodeSelector:
-        node-role.kubernetes.io/master: ""
+        node-role.kubernetes.io/control-plane: ""
       tolerations:
-        - key: "node-role.cck.net/infra"
+        - key: "node-role.kubernetes.io/control-plane"
           effect: NoSchedule
-        - key: "node-role.kubernetes.io/master"
+        - key: "node-role.cck.net/infra"
           effect: NoSchedule
       dnsPolicy: Default
       containers:
         - name: cds-pod-alarm
-          image: capitalonline/cds-pod-alarm:v2.0.0
+          image: registry-bj.capitalonline.net/cck/cds-pod-alarm:v2.0.0
           imagePullPolicy: Always
           env:
             - name: CDS_ACCESS_KEY_ID
