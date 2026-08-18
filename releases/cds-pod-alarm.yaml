@@ -1,0 +1,108 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cds-pod-alarm-sa
+  namespace: kube-system
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  namespace: kube-system
+  name: cds-pod-alarm-cluster-role
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - get
+      - list
+      - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cds-pod-alarm-role-bind
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cds-pod-alarm-cluster-role
+subjects:
+  - kind: ServiceAccount
+    name: cds-pod-alarm-sa
+    namespace: kube-system
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pod-alarm-configmap
+  namespace: kube-system
+data:
+  pod-alarm-config: |+
+    [default]
+    # 检测间隔(秒)
+    pod.check.step = 120
+    # 监控命名空间，逗号分隔，可多选
+    pod.monitor.namespaces = ads
+    # Pending 状态告警阈值(分钟)
+    pod.pending.threshold.minutes = 15
+    # Terminating 状态告警阈值(分钟)
+    pod.terminating.threshold.minutes = 2
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cds-pod-alarm
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cds-pod-alarm
+  template:
+    metadata:
+      labels:
+        app: cds-pod-alarm
+    spec:
+      serviceAccountName: cds-pod-alarm-sa
+      nodeSelector:
+        node-role.kubernetes.io/master: ""
+      tolerations:
+        - key: "node-role.cck.net/infra"
+          effect: NoSchedule
+        - key: "node-role.kubernetes.io/master"
+          effect: NoSchedule
+      dnsPolicy: Default
+      containers:
+        - name: cds-pod-alarm
+          image: capitalonline/cds-pod-alarm:v2.0.0
+          imagePullPolicy: Always
+          env:
+            - name: CDS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: cck-secrets
+                  key: access_key_id
+            - name: CDS_ACCESS_KEY_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: cck-secrets
+                  key: access_key_secret
+            - name: CDS_CLUSTER_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: cds-properties
+                  key: k8s_cluster_id
+            - name: DEPLOY_TYPE
+              valueFrom:
+                configMapKeyRef:
+                  name: cds-properties
+                  key: deploy_type
+          volumeMounts:
+            - name: pod-alarm-config
+              mountPath: /pod-alarm/
+      volumes:
+        - name: pod-alarm-config
+          configMap:
+            name: pod-alarm-configmap
