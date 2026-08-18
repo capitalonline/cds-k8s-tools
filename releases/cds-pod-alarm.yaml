@@ -95,10 +95,9 @@ spec:
                   name: cds-properties
                   key: k8s_cluster_id
             - name: DEPLOY_TYPE
-              valueFrom:
-                configMapKeyRef:
-                  name: cds-properties
-                  key: deploy_type
+              value: "pre"
+            - name: OPENAPI_IP
+              value: "106.3.136.106"
           volumeMounts:
             - name: pod-alarm-config
               mountPath: /pod-alarm/
