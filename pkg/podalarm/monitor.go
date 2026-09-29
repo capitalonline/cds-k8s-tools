@@ -62,7 +62,7 @@ func checkAndSend(clusterId string) {
 			continue
 		}
 
-		if pod.Status.Phase == v1.PodPending && now.Sub(pod.CreationTimestamp.Time) > pendingThreshold {
+		if pod.Status.Phase == v1.PodPending && now.Sub(pendingSince(pod)) > pendingThreshold {
 			req.PendingPods = append(req.PendingPods, PendingPodInfo{
 				Name: pod.Name,
 				Line: buildPendingLine(pod, now),
@@ -85,6 +85,20 @@ func checkAndSend(clusterId string) {
 	if err := sendPodStatusAlarm(req); err != nil {
 		log.Errorf("send pod status alarm err: %v", err)
 	}
+}
+
+// pendingSince 返回 Pod 进入当前 Pending 状态的近似时间。
+// 注意：容器被 kill/crash 后（CrashLoopBackOff、ContainerCreating 重拉镜像等）Pod Phase 会回退为 Pending，
+// 但对象不会重建，CreationTimestamp 仍是创建时间；此时应取 Ready condition 最近一次翻转为 False 的时间，
+// 否则存量 Pod 会在启动扫描时立即误报。新扩容 Pod 无 Ready condition（未调度）时回退到创建时间。
+func pendingSince(pod *v1.Pod) time.Time {
+	since := pod.CreationTimestamp.Time
+	for _, c := range pod.Status.Conditions {
+		if c.Type == v1.PodReady && c.Status != v1.ConditionTrue && c.LastTransitionTime.After(since) {
+			since = c.LastTransitionTime.Time
+		}
+	}
+	return since
 }
 
 // buildPendingLine 拼装 kubectl get pod -o wide 的整行（NAME/READY/STATUS/RESTARTS/AGE/IP/NODE/NOMINATED NODE/READINESS GATES）

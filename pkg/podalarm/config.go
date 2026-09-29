@@ -48,7 +48,7 @@ func getNamespaces() []string {
 func getPendingThresholdMinutes() int {
 	m := conf.GetKeyInt(DefaultConfig, PendingThresholdMinutes)
 	if m <= 0 {
-		m = 15
+		m = 20
 	}
 	return m
 }
