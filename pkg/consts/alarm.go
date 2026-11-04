@@ -3,6 +3,7 @@ package consts
 const (
 	SendAlarm           = "SendAlarm"
 	SendSNatAlarmInfoV2 = "SendSnatAlarmInfoV2"
+	SendPodStatusAlarm  = "SendPodStatusAlarm"
 )
 
 const (
@@ -16,6 +17,8 @@ const (
 	AlarmServiceV2Route        = "/v2/alarm"
 
 	SNatPodName = "cds-snat-configuration"
+
+	PodAlarmPodName = "cds-pod-alarm"
 )
 
 const (
