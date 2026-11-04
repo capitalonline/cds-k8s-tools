@@ -7,7 +7,14 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
+
+// DefaultCheckConcurrency 单个 monitor 允许同时运行的检测数量上限。
+// 地址较多时（如 200 个），若不限制并发，每轮会同时拉起等量的 ping/telnet 子进程，
+// 且上一轮未结束时下一轮还会继续叠加，最终导致内存无上界增长。
+const DefaultCheckConcurrency = 50
 
 type NetAlarmInfo struct {
 	Metric string
@@ -33,8 +40,16 @@ type NetMonitor struct {
 	AddrExt            []string
 	AddrExclude        []string
 
+	// Alarming 已废弃：原先用全局标志对复查去重，导致同一 monitor 下多个地址同时故障时
+	// 只有第一个能进入复查并上报。现已改为 AlarmMap 按地址去重，该字段仅为兼容保留。
 	Alarming      bool
 	AlarmInfoChan chan NetAlarmInfo
+
+	// AlarmMap 按 "指标|地址" 去重，保证多个地址可以并发进入复查、各自上报。
+	AlarmMap *sync.Map
+
+	semMu    sync.RWMutex
+	checkSem chan struct{}
 
 	CheckFunc        func(string, string, BaseMonitorConfig, *NetMonitor) NetAlarmInfo
 	DefaultCheckAddr func() []string
@@ -94,6 +109,48 @@ func (m *NetMonitor) ResetAddr(ext, exclude []string) {
 	m.AddrExclude = exclude
 }
 
+// ResetConcurrency 设置同时运行的检测数量上限，非法值回落到默认值。
+// 仅在容量变化时重建信号量，已有 goroutine 持有的是旧信号量，不会互相影响。
+func (m *NetMonitor) ResetConcurrency(n int) {
+	if n <= 0 || n > 500 {
+		n = DefaultCheckConcurrency
+	}
+	m.semMu.Lock()
+	defer m.semMu.Unlock()
+	if cap(m.checkSem) == n {
+		return
+	}
+	m.checkSem = make(chan struct{}, n)
+}
+
+func (m *NetMonitor) sem() chan struct{} {
+	m.semMu.RLock()
+	defer m.semMu.RUnlock()
+	return m.checkSem
+}
+
+// dispatch 异步执行一次检测；并发已满时跳过本轮并告警，避免 goroutine 与子进程无限堆积。
+func (m *NetMonitor) dispatch(addr, metric string, cfg BaseMonitorConfig) {
+	sem := m.sem()
+	select {
+	case sem <- struct{}{}:
+		go func() {
+			defer func() { <-sem }()
+			m.CheckFunc(addr, metric, cfg, m)
+		}()
+	default:
+		log.Warnf("[%s]%s 检测并发已达上限(%d)，跳过本轮", m.MonitorName, addr, cap(sem))
+	}
+}
+
+// CheckWithLimit 同步执行一次检测，受并发上限约束。复查使用该方法，保证不会被跳过。
+func (m *NetMonitor) CheckWithLimit(addr, metric string, cfg BaseMonitorConfig) NetAlarmInfo {
+	sem := m.sem()
+	sem <- struct{}{}
+	defer func() { <-sem }()
+	return m.CheckFunc(addr, metric, cfg, nil)
+}
+
 func (m *NetMonitor) CheckAddrExist(addr string) bool {
 	exist := false
 	for _, v := range m.AddrExt {
@@ -141,7 +198,7 @@ func (m *NetMonitor) check(metric string, wg *sync.WaitGroup) {
 				if addr == "" {
 					continue
 				}
-				go m.CheckFunc(addr, m.DefaultCheckMetric, cfg, m)
+				m.dispatch(addr, m.DefaultCheckMetric, cfg)
 			}
 		}
 		if len(m.AddrExt) == 0 {
@@ -153,7 +210,7 @@ func (m *NetMonitor) check(metric string, wg *sync.WaitGroup) {
 			if addr == "" || m.CheckFunc == nil {
 				continue
 			}
-			go m.CheckFunc(addr, metric, cfg, m)
+			m.dispatch(addr, metric, cfg)
 		}
 	}
 }
@@ -186,6 +243,8 @@ func NewNetMonitor(name string,
 
 		Alarming:         false,
 		AlarmInfoChan:    make(chan NetAlarmInfo, 10),
+		AlarmMap:         new(sync.Map),
+		checkSem:         make(chan struct{}, DefaultCheckConcurrency),
 		CheckFunc:        checkFunc,
 		ReviewFunc:       reviewFunc,
 		DefaultCheckAddr: defaultFunc,

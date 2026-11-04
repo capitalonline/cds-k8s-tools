@@ -33,6 +33,9 @@ func ChangeMonitor() {
 	// 网络连通性超时时间
 	timeout := conf.GetKeyInt(consts.DefaultConfig, consts.CheckTimeout)
 
+	// 单个 monitor 同时运行的检测数量上限，未配置时使用代码默认值
+	concurrency := conf.GetKeyInt(consts.DefaultConfig, consts.CheckConcurrency)
+
 	cfg := monitor.BaseMonitorConfig{
 		CheckSum:     sum,
 		CheckLimit:   limit,
@@ -44,6 +47,10 @@ func ChangeMonitor() {
 	TelnetMonitor.ResetCommon(cfg)
 	NodePingMonitor.ResetCommon(cfg)
 	PodPingMonitor.ResetCommon(cfg)
+
+	TelnetMonitor.ResetConcurrency(concurrency)
+	NodePingMonitor.ResetConcurrency(concurrency)
+	PodPingMonitor.ResetConcurrency(concurrency)
 
 	pingDefault := conf.GetKeyString(consts.DefaultConfig, consts.CheckPodDefaultPing)
 	PodPingMonitor.ResetDefault(pingDefault, consts.CheckPodDefaultPing)
