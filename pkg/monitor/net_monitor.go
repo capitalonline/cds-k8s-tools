@@ -129,18 +129,16 @@ func (m *NetMonitor) sem() chan struct{} {
 	return m.checkSem
 }
 
-// dispatch 异步执行一次检测；并发已满时跳过本轮并告警，避免 goroutine 与子进程无限堆积。
+// dispatch 异步执行一次检测。并发槽位已满时阻塞等待，而不是跳过：
+// 跳过会导致列表尾部的地址永远抢不到槽位（每轮派发顺序相同），相当于漏监控。
+// 代价是一轮耗时超过 CheckStep 时实际检查间隔会被拉长，check() 里会打印告警日志。
 func (m *NetMonitor) dispatch(addr, metric string, cfg BaseMonitorConfig) {
 	sem := m.sem()
-	select {
-	case sem <- struct{}{}:
-		go func() {
-			defer func() { <-sem }()
-			m.CheckFunc(addr, metric, cfg, m)
-		}()
-	default:
-		log.Warnf("[%s]%s 检测并发已达上限(%d)，跳过本轮", m.MonitorName, addr, cap(sem))
-	}
+	sem <- struct{}{}
+	go func() {
+		defer func() { <-sem }()
+		m.CheckFunc(addr, metric, cfg, m)
+	}()
 }
 
 // CheckWithLimit 同步执行一次检测，受并发上限约束。复查使用该方法，保证不会被跳过。
@@ -185,6 +183,7 @@ func (m *NetMonitor) check(metric string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for {
 		time.Sleep(time.Duration(m.CheckStep) * time.Second)
+		roundStart := time.Now()
 		cfg := BaseMonitorConfig{
 			CheckSum:     m.CheckSum,
 			CheckLimit:   m.CheckLimit,
@@ -211,6 +210,10 @@ func (m *NetMonitor) check(metric string, wg *sync.WaitGroup) {
 				continue
 			}
 			m.dispatch(addr, metric, cfg)
+		}
+		if elapsed := time.Since(roundStart); elapsed > time.Duration(m.CheckStep)*time.Second {
+			log.Warnf("[%s] 本轮检测派发耗时 %v，超过检查频率 %ds，实际间隔会被拉长；请调大 snat.check.step 或 snat.check.concurrency",
+				m.MonitorName, elapsed.Round(time.Second), m.CheckStep)
 		}
 	}
 }

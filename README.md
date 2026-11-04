@@ -39,7 +39,7 @@ kubectl edit cm snat-configmap -n kube-system
 | snat.check.limit   | 一轮检查失败次数：默认值为3，最小值为1，最大值为30，不能大于一轮检查总次数，输入值必须为整数 |
 | snat.check.recover | 允许异常持续周期：默认值为3                                  |
 | snat.check.timeout | 连接超时时长：默认值10，不可修改                             |
-| snat.check.concurrency | 同一时刻并发执行的检测数量上限，默认50，有效范围1~500，超出范围按默认值处理。检测地址较多时（如超过100个）需同时调大 `snat.check.step`，否则部分地址会被跳过，日志中会打印 `检测并发已达上限` |
+| snat.check.concurrency | 同一时刻并发执行的检测数量上限，默认50，有效范围1~500，超出范围按默认值处理。地址较多时（如超过100个）需同时调大 `snat.check.step`，否则一轮跑不完、实际检查间隔会被拉长，日志中会打印 `本轮检测派发耗时...超过检查频率` |
 
 ### 指标配置
 
