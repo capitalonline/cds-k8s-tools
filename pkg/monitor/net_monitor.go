@@ -16,6 +16,12 @@ import (
 // 且上一轮未结束时下一轮还会继续叠加，最终导致内存无上界增长。
 const DefaultCheckConcurrency = 50
 
+// DefaultReviewConcurrency 同一时刻允许处于复查状态的地址数上限。
+// 复查 goroutine 会一直存活到恢复或超时（最长 ReviewTimeout），若不限制，
+// 大量地址同时故障时会拉起等量 goroutine，并且每个复查都会周期性重新检测，
+// 反过来拖慢主巡检。名额满时丢弃本次触发，由下一轮巡检重新上报，不会漏报。
+const DefaultReviewConcurrency = 20
+
 type NetAlarmInfo struct {
 	Metric string
 	Ok     bool
@@ -50,6 +56,10 @@ type NetMonitor struct {
 
 	semMu    sync.RWMutex
 	checkSem chan struct{}
+
+	// reviewSem 限制同时处于复查阶段的地址数，在 review() 中非阻塞获取。
+	// 复查有自己的预算，不再与主巡检抢 checkSem，避免大量地址故障时主巡检被饿死。
+	reviewSem chan struct{}
 
 	CheckFunc        func(string, string, BaseMonitorConfig, *NetMonitor) NetAlarmInfo
 	DefaultCheckAddr func() []string
@@ -141,11 +151,13 @@ func (m *NetMonitor) dispatch(addr, metric string, cfg BaseMonitorConfig) {
 	}()
 }
 
-// CheckWithLimit 同步执行一次检测，受并发上限约束。复查使用该方法，保证不会被跳过。
+// CheckWithLimit 同步执行一次检测。复查使用该方法。
+//
+// 这里刻意不再获取 checkSem：复查的并发已经由 reviewSem 限制在
+// DefaultReviewConcurrency 以内，且每个复查 goroutine 同时只会跑一次检测。
+// 如果复查再去抢 checkSem，故障地址较多时复查会把主巡检挤到队尾
+// （主巡检在队列里只占 1 个位置，复查有 N 个），导致主巡检几乎停滞。
 func (m *NetMonitor) CheckWithLimit(addr, metric string, cfg BaseMonitorConfig) NetAlarmInfo {
-	sem := m.sem()
-	sem <- struct{}{}
-	defer func() { <-sem }()
 	return m.CheckFunc(addr, metric, cfg, nil)
 }
 
@@ -221,8 +233,21 @@ func (m *NetMonitor) check(metric string, wg *sync.WaitGroup) {
 func (m *NetMonitor) review(wg *sync.WaitGroup) {
 	defer wg.Done()
 	for v := range m.AlarmInfoChan {
-		if !v.Ok && m.ReviewFunc != nil {
-			go m.ReviewFunc(v, m)
+		if v.Ok || m.ReviewFunc == nil {
+			continue
+		}
+		// 非阻塞抢占复查名额。不要在这里阻塞等待：AlarmInfoChan 写满后
+		// CheckFunc 会被反压，而 CheckFunc 正持有 checkSem 槽位，会把主巡检一起拖住。
+		select {
+		case m.reviewSem <- struct{}{}:
+			go func(info NetAlarmInfo) {
+				defer func() { <-m.reviewSem }()
+				m.ReviewFunc(info, m)
+			}(v)
+		default:
+			// 名额已满，丢弃本次触发；地址仍会在下一轮巡检中重新上报。
+			log.Debugf("[%s]%s 复查名额已满(%d)，跳过本次复查触发",
+				m.MonitorName, v.Addr, DefaultReviewConcurrency)
 		}
 	}
 }
@@ -248,6 +273,7 @@ func NewNetMonitor(name string,
 		AlarmInfoChan:    make(chan NetAlarmInfo, 10),
 		AlarmMap:         new(sync.Map),
 		checkSem:         make(chan struct{}, DefaultCheckConcurrency),
+		reviewSem:        make(chan struct{}, DefaultReviewConcurrency),
 		CheckFunc:        checkFunc,
 		ReviewFunc:       reviewFunc,
 		DefaultCheckAddr: defaultFunc,
