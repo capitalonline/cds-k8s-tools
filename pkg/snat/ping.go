@@ -71,36 +71,45 @@ func PingConn(addr, key string, cfg monitor.BaseMonitorConfig, netMonitor *monit
 	return alarmInfo
 }
 
+// ReviewTimeout 单个地址进入复查后的最长持续时间。
+// 原实现按 "3600/(CheckStep/2)" 次计数来近似 1 小时，但没有计入检测本身的耗时，
+// 实测会拖到 1.5 小时以上，这里改为按时间控制。
+const ReviewTimeout = 30 * time.Minute
+
 func PingReview(info monitor.NetAlarmInfo, m *monitor.NetMonitor) {
-	if m.Alarming {
+	// 按地址去重：原先用全局 Alarming 标志，同一 monitor 下多个地址同时故障时
+	// 只有第一个能进入复查，其余会被丢弃。
+	alarmKey := fmt.Sprintf("%s|%s", info.Metric, info.Addr)
+	if _, loaded := m.AlarmMap.LoadOrStore(alarmKey, struct{}{}); loaded {
 		return
 	}
+	defer m.AlarmMap.Delete(alarmKey)
+
 	var (
 		successSum = 0
 		failSum    = 0
 		callAlarm  = false
-		maxFailSum = 3600 / (m.CheckStep / 2)
+		deadline   = time.Now().Add(ReviewTimeout)
 		result     monitor.NetAlarmInfo
 	)
-	if maxFailSum < 10 {
-		maxFailSum = 10
-	}
-	m.Alarm()
 	log.Infof("[%s]%s(%v)进入复查阶段", info.Metric, info.Addr, info.Value)
 	for {
 		if info.Metric != consts.CheckPodDefaultPing && info.Metric != consts.CheckNodeDns {
 			if !m.CheckAddrExist(info.Addr) {
-				m.Recover()
 				return
 			}
 		}
+		if time.Now().After(deadline) {
+			log.Warnf("[%s]%s 复查超过 %v，退出", info.Metric, info.Addr, ReviewTimeout)
+			return
+		}
 		time.Sleep(time.Duration(m.CheckStep/2) * time.Second)
-		result = m.CheckFunc(info.Addr, info.Metric, monitor.BaseMonitorConfig{
+		result = m.CheckWithLimit(info.Addr, info.Metric, monitor.BaseMonitorConfig{
 			CheckSum:     m.CheckSum,
 			CheckLimit:   m.CheckLimit,
 			CheckStep:    m.CheckStep,
 			CheckTimeout: m.CheckTimeout,
-		}, nil)
+		})
 		if result.Ok {
 			successSum++
 		} else {
@@ -108,7 +117,6 @@ func PingReview(info monitor.NetAlarmInfo, m *monitor.NetMonitor) {
 			failSum++
 		}
 		if successSum >= m.RecoverSum {
-			m.Recover()
 			if callAlarm {
 				// 恢复, 发送回复请求
 				if err := alarm(&service.AlarmMessage{
@@ -138,10 +146,6 @@ func PingReview(info monitor.NetAlarmInfo, m *monitor.NetMonitor) {
 			} else {
 				callAlarm = true
 			}
-		}
-		if failSum > maxFailSum {
-			m.Recover()
-			return
 		}
 	}
 }

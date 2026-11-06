@@ -7,6 +7,7 @@ const (
 	CheckLimit           = "snat.check.limit"
 	CheckRecoverSum      = "snat.check.recover"
 	CheckTimeout         = "snat.check.timeout"
+	CheckConcurrency     = "snat.check.concurrency"
 	CheckNodePingExclude = "snat.check.node_ping_exclude"
 
 	BlankMetric         = ""

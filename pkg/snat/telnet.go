@@ -26,27 +26,28 @@ func TelnetReview(info monitor.NetAlarmInfo, m *monitor.NetMonitor) {
 		failSum    = 0
 		callAlarm  = false
 		result     monitor.NetAlarmInfo
-		maxFailSum = 3600 / (m.CheckStep / 2)
+		deadline   = time.Now().Add(ReviewTimeout)
 	)
-	if maxFailSum < 10 {
-		maxFailSum = 10
-	}
 	TelnetAddrAlarmMap.Store(info.Addr, 1)
 	m.Alarm()
 	log.Infof("[%s]%s(%v)进入复查阶段", info.Metric, info.Addr, info.Value)
 	for {
 		if !m.CheckAddrExist(info.Addr) {
-			m.Recover()
+			TelnetAddrAlarmMap.Delete(info.Addr)
+			return
+		}
+		if time.Now().After(deadline) {
+			log.Warnf("[%s]%s 复查超过 %v，退出", info.Metric, info.Addr, ReviewTimeout)
 			TelnetAddrAlarmMap.Delete(info.Addr)
 			return
 		}
 		time.Sleep(time.Duration(m.CheckStep/2) * time.Second)
-		result = m.CheckFunc(info.Addr, info.Metric, monitor.BaseMonitorConfig{
+		result = m.CheckWithLimit(info.Addr, info.Metric, monitor.BaseMonitorConfig{
 			CheckSum:     m.CheckSum,
 			CheckLimit:   m.CheckLimit,
 			CheckStep:    m.CheckStep,
 			CheckTimeout: m.CheckTimeout,
-		}, nil)
+		})
 		if result.Ok {
 			successSum++
 		} else {
@@ -85,11 +86,6 @@ func TelnetReview(info monitor.NetAlarmInfo, m *monitor.NetMonitor) {
 			} else {
 				callAlarm = true
 			}
-		}
-		if failSum > maxFailSum {
-			m.Recover()
-			TelnetAddrAlarmMap.Delete(info.Addr)
-			return
 		}
 	}
 }

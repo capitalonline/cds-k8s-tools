@@ -1,0 +1,104 @@
+# 仅用于预生产 OpenAPI 联调（alarm-service 指向 cdsapi-gateway.gic.pre）
+# 用法：kubectl apply -f releases/cds-alarm-service-ben-dev-1104.yaml
+# 回滚：kubectl -n kube-system rollout undo deploy/cds-alarm-service
+#
+# 注意：DEPLOY_TYPE 必须写死为 pre 覆盖 cds-properties 里的 pro，
+# 代码里没有 API_HOST 这个变量，网关地址由 DEPLOY_TYPE 决定（pkg/utils/init.go:28）。
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cds-alarm-service
+  namespace: kube-system
+  labels:
+    app: cds-alarm-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cds-alarm-service
+  template:
+    metadata:
+      labels:
+        app: cds-alarm-service
+    spec:
+      serviceAccountName: cds-alarm-service-sa
+      nodeSelector:
+        # 1.24+ 集群该 label 已由 master 改为 control-plane，原写法匹配不到任何节点
+        node-role.kubernetes.io/control-plane: ""
+      tolerations:
+        - key: "node-role.cck.net/infra"
+          effect: NoSchedule
+        - key: "node-role.kubernetes.io/master"
+          effect: NoSchedule
+        # 1.24+ 集群 master 节点的 taint key 变更，缺这条会导致 Pod Pending
+        - key: "node-role.kubernetes.io/control-plane"
+          effect: NoSchedule
+      dnsPolicy: Default
+      # 预生产网关域名映射，不依赖节点 DNS
+      hostAliases:
+        - ip: "106.3.136.106"
+          hostnames:
+            - cdsapi-gateway.gic.pre
+      containers:
+        - name: cds-alarm-service
+          image: registry-bj.capitalonline.net/cck/cds-alarm-service:ben-dev-1104
+          imagePullPolicy: Always
+          ports:
+            - name: http-port
+              containerPort: 80
+              protocol: TCP
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
+            - name: CDS_OVERSEA
+              valueFrom:
+                configMapKeyRef:
+                  name: cds-properties
+                  key: oversea
+            - name: CDS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: cck-secrets
+                  key: access_key_id
+            - name: CDS_ACCESS_KEY_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: cck-secrets
+                  key: access_key_secret
+            - name: CDS_CLUSTER_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: cds-properties
+                  key: k8s_cluster_id
+            - name: CDS_CLUSTER_REGION_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: cds-properties
+                  key: site_id
+            # 以下是本次联调的关键改动：覆盖 cds-properties 中的 deploy_type=pro
+            - name: DEPLOY_TYPE
+              value: "pre"
+            - name: OPENAPI_IP
+              value: "106.3.136.106"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 20

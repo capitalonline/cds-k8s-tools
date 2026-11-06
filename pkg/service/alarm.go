@@ -16,11 +16,27 @@ import (
 
 var AlarmChan = make(chan AlarmInstance, 100)
 
+const alarmFlushInterval = 3 * time.Second
+
+// resetAlarmTimer 重置批量发送计时器。
+// Go 1.15+ 要求 Reset 前先 Stop 并排空通道：如果上一次触发发生在
+// ReqAlarmOpenApi 阻塞期间，通道里会残留一个已过期的值，
+// 直接 Reset 会让下一轮 select 立刻命中，导致同一批告警被重复发送。
+func resetAlarmTimer(t *time.Timer) {
+	if !t.Stop() {
+		select {
+		case <-t.C:
+		default:
+		}
+	}
+	t.Reset(alarmFlushInterval)
+}
+
 func AlarmCenter() {
 	var (
 		err       error
 		alarmList = make([]AlarmInstance, 0, 100)
-		timer     = time.NewTimer(3 * time.Second)
+		timer     = time.NewTimer(alarmFlushInterval)
 	)
 
 	defer timer.Stop()
@@ -39,7 +55,7 @@ func AlarmCenter() {
 					alarmList = make([]AlarmInstance, 0, 100)
 				}
 			}
-			timer.Reset(3 * time.Second)
+			resetAlarmTimer(timer)
 		case <-timer.C:
 			if len(alarmList) > 0 {
 				if err = ReqAlarmOpenApi(CckNewAlarmReq{
@@ -47,6 +63,9 @@ func AlarmCenter() {
 					AlarmInstances: alarmList,
 				}); err != nil {
 					log.Errorf("ReqAlarmOpenApi err: %s", err)
+					// 发送失败：保留批次并重置计时器，3 秒后重试。
+					// 之前这里漏了 Reset，告警流一旦停止，积压批次就会永久滞留。
+					resetAlarmTimer(timer)
 				} else {
 					alarmList = make([]AlarmInstance, 0, 100)
 				}
