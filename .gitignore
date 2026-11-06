@@ -19,3 +19,6 @@ bin
 
 .test_tmp
 .idea/workspace.xml
+
+# macOS
+.DS_Store
