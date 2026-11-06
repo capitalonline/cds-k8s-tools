@@ -20,8 +20,6 @@ const (
 	AutoDeleteEnabled = "pod.autodelete.enabled"
 	// AutoDeleteDelayMinutes 在告警阈值基础上再等待的分钟数，超过 (告警阈值+该值) 才会真正处理
 	AutoDeleteDelayMinutes = "pod.autodelete.delay.minutes"
-	// AutoDeleteNamespaces 允许自动删除的命名空间，逗号分隔；必须显式指定，留空视为功能未生效
-	AutoDeleteNamespaces = "pod.autodelete.namespaces"
 )
 
 var conf *config.Conf
@@ -82,21 +80,4 @@ func getAutoDeleteDelayMinutes() int {
 		m = 5
 	}
 	return m
-}
-
-// getAutoDeleteNamespaces 允许自动删除的命名空间集合。
-// 必须显式配置，留空返回空集合：调用方据此判断"功能未生效"，避免忘记配置就对全集群生效。
-func getAutoDeleteNamespaces() map[string]bool {
-	ns := conf.GetKeyString(DefaultConfig, AutoDeleteNamespaces)
-	result := make(map[string]bool)
-	if ns == "" {
-		return result
-	}
-	for _, s := range strings.Split(ns, ",") {
-		s = strings.TrimSpace(s)
-		if s != "" {
-			result[s] = true
-		}
-	}
-	return result
 }

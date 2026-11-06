@@ -22,24 +22,21 @@ func runAutoDelete(pods []*v1.Pod, autoDeleteThreshold time.Duration, now time.T
 	}
 
 	enabled := getAutoDeleteEnabled()
-	targetNS := getAutoDeleteNamespaces()
 
 	for _, pod := range pods {
 		if now.Sub(pod.DeletionTimestamp.Time) < autoDeleteThreshold {
 			continue
 		}
 
-		eligible, needManual, inScope, reason := isAutoDeleteEligible(pod, targetNS)
+		eligible, needManual, reason := isAutoDeleteEligible(pod)
 		key := fmt.Sprintf("%s/%s", pod.Namespace, pod.Name)
 		terminatingFor := now.Sub(terminatingSince(pod)).Round(time.Second)
 
 		switch {
 		case needManual:
 			log.Warnf("[pod-autodelete] %s 已 Terminating %v，%s", key, terminatingFor, reason)
-		case !eligible && inScope:
-			log.Infof("[pod-autodelete] %s 跳过自动删除：%s", key, reason)
 		case !eligible:
-			log.Debugf("[pod-autodelete] %s 跳过自动删除：%s", key, reason)
+			log.Infof("[pod-autodelete] %s 跳过自动删除：%s", key, reason)
 		case !enabled:
 			log.Infof("[pod-autodelete] [dry-run] 将会强制删除 %s，已 Terminating %v", key, terminatingFor)
 		default:

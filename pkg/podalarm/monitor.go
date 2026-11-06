@@ -19,6 +19,12 @@ func Run() {
 		log.Fatalf("env %s is empty", consts.CDS_CLUSTER_ID)
 	}
 
+	// pod.monitor.namespaces 同时决定告警和自动删除的范围，必须显式配置。
+	// 留空会导致范围无法界定（旧版本"留空=监控全部"的语义容易误伤），直接启动失败更安全。
+	if len(getNamespaces()) == 0 {
+		log.Fatalf("%s is required, configure at least one namespace", MonitorNamespaces)
+	}
+
 	// 启用配置热更新
 	conf.WatchConf()
 
@@ -33,6 +39,12 @@ func Run() {
 // checkAndSend 检测 pending/terminating Pod 并上报
 func checkAndSend(clusterId string) {
 	namespaces := getNamespaces()
+	// 热更新把命名空间清空时，本轮直接跳过；不能退化成"监控全部"，否则自动删除会覆盖全集群。
+	if len(namespaces) == 0 {
+		log.Errorf("%s is empty, skip this round", MonitorNamespaces)
+		return
+	}
+
 	pendingThresholdMinutes := getPendingThresholdMinutes()
 	terminatingThresholdMinutes := getTerminatingThresholdMinutes()
 	pendingThreshold := time.Duration(pendingThresholdMinutes) * time.Minute
@@ -59,7 +71,7 @@ func checkAndSend(clusterId string) {
 
 	for i := range pods.Items {
 		pod := &pods.Items[i]
-		if len(nsSet) > 0 && !nsSet[pod.Namespace] {
+		if !nsSet[pod.Namespace] {
 			continue
 		}
 
