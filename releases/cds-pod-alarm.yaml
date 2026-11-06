@@ -19,6 +19,7 @@ rules:
       - get
       - list
       - watch
+      - delete
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -43,12 +44,18 @@ data:
     [default]
     # 检测间隔(秒)
     pod.check.step = 120
-    # 监控命名空间，逗号分隔，可多选，留空则监控全部
+    # 监控命名空间，逗号分隔，可多选。【必填】告警和自动删除共用该范围，留空组件启动失败
     pod.monitor.namespaces = default
     # Pending 状态告警阈值(分钟)
     pod.pending.threshold.minutes = 20
     # Terminating 状态告警阈值(分钟)
     pod.terminating.threshold.minutes = 10
+    # 自动删除总开关，yes/no，默认 no（dry-run：只打印"将会强制删除"日志，不真正调用删除接口）
+    pod.autodelete.enabled = no
+    # 在告警阈值基础上再等待的分钟数，超过 (告警阈值+该值) 才会真正处理，默认 5
+    # 作用范围即上面的 pod.monitor.namespaces；仅对无状态工作负载（Deployment/Job 拥有的 Pod）生效，
+    # 并会跳过系统命名空间、挂载 PVC、裸 Pod 以及存在 finalizer 的 Pod
+    pod.autodelete.delay.minutes = 5
 ---
 apiVersion: apps/v1
 kind: Deployment

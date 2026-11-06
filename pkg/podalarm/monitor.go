@@ -19,6 +19,12 @@ func Run() {
 		log.Fatalf("env %s is empty", consts.CDS_CLUSTER_ID)
 	}
 
+	// pod.monitor.namespaces 同时决定告警和自动删除的范围，必须显式配置。
+	// 留空会导致范围无法界定（旧版本"留空=监控全部"的语义容易误伤），直接启动失败更安全。
+	if len(getNamespaces()) == 0 {
+		log.Fatalf("%s is required, configure at least one namespace", MonitorNamespaces)
+	}
+
 	// 启用配置热更新
 	conf.WatchConf()
 
@@ -33,6 +39,12 @@ func Run() {
 // checkAndSend 检测 pending/terminating Pod 并上报
 func checkAndSend(clusterId string) {
 	namespaces := getNamespaces()
+	// 热更新把命名空间清空时，本轮直接跳过；不能退化成"监控全部"，否则自动删除会覆盖全集群。
+	if len(namespaces) == 0 {
+		log.Errorf("%s is empty, skip this round", MonitorNamespaces)
+		return
+	}
+
 	pendingThresholdMinutes := getPendingThresholdMinutes()
 	terminatingThresholdMinutes := getTerminatingThresholdMinutes()
 	pendingThreshold := time.Duration(pendingThresholdMinutes) * time.Minute
@@ -55,10 +67,11 @@ func checkAndSend(clusterId string) {
 		TerminatingThresholdMinutes: terminatingThresholdMinutes,
 	}
 	now := time.Now()
+	terminatingPods := make([]*v1.Pod, 0)
 
 	for i := range pods.Items {
 		pod := &pods.Items[i]
-		if len(nsSet) > 0 && !nsSet[pod.Namespace] {
+		if !nsSet[pod.Namespace] {
 			continue
 		}
 
@@ -71,8 +84,14 @@ func checkAndSend(clusterId string) {
 
 		if pod.DeletionTimestamp != nil && now.Sub(pod.DeletionTimestamp.Time) > terminatingThreshold {
 			req.TerminatingPods = append(req.TerminatingPods, buildTerminatingInfo(pod, now))
+			terminatingPods = append(terminatingPods, pod)
 		}
 	}
+
+	// 自动删除是告警之外的独立旁路：告警走原有协议上报 cckservice，
+	// 自动删除只打本地日志，两者共用同一份已采集的 Terminating Pod 列表，互不影响。
+	autoDeleteThreshold := terminatingThreshold + time.Duration(getAutoDeleteDelayMinutes())*time.Minute
+	runAutoDelete(terminatingPods, autoDeleteThreshold, now)
 
 	if len(req.PendingPods) == 0 && len(req.TerminatingPods) == 0 {
 		log.Debugf("no abnormal pod, cluster=%s", clusterId)
@@ -127,6 +146,18 @@ func buildPendingLine(pod *v1.Pod, now time.Time) string {
 		name, ready, status, restarts, age, ip, node, nominated, gates)
 }
 
+// terminatingSince 返回 Pod 真正开始 Terminating 的时间。
+// DeletionTimestamp 存的是"删除截止时间"(删除时刻 + gracePeriod)，不是删除开始时间，
+// 直接用它算时长会少算一个优雅退出窗口（默认 30s），需要把 gracePeriod 减回去。
+// 带 finalizer 的 Pod 同样满足该关系（实测 deletionTimestamp 仍是删除时刻 + grace）。
+func terminatingSince(pod *v1.Pod) time.Time {
+	start := pod.DeletionTimestamp.Time
+	if pod.DeletionGracePeriodSeconds != nil {
+		start = start.Add(-time.Duration(*pod.DeletionGracePeriodSeconds) * time.Second)
+	}
+	return start
+}
+
 // buildTerminatingInfo 采集 terminating Pod 的信息（对齐 shell 脚本：namespace/name/spec.nodeName/status.hostIP）
 func buildTerminatingInfo(pod *v1.Pod, now time.Time) TerminatingPodInfo {
 	return TerminatingPodInfo{
@@ -134,7 +165,7 @@ func buildTerminatingInfo(pod *v1.Pod, now time.Time) TerminatingPodInfo {
 		Name:            pod.Name,
 		Node:            pod.Spec.NodeName,
 		NodeIP:          pod.Status.HostIP,
-		DurationSeconds: int64(now.Sub(pod.DeletionTimestamp.Time).Seconds()),
+		DurationSeconds: int64(now.Sub(terminatingSince(pod)).Seconds()),
 	}
 }
 
