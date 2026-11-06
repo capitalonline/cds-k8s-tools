@@ -14,8 +14,8 @@ import (
 // runAutoDelete 对一批已超过告警阈值的 Terminating Pod 执行自动删除逻辑。
 //
 // 只在日志里体现处理结果，不上报 cckservice，不影响原有告警协议/流程。
-// pods 里的每个元素都已经过 autoDeleteThreshold 时长判断（由调用方保证），
-// 这里只做资格判定和实际删除动作。
+// pods 里是已超过告警阈值的 Terminating Pod；本函数在此基础上按 autoDeleteThreshold
+// （告警阈值 + 额外延迟）二次过滤，只处理真正超过自动删除阈值的 Pod。
 func runAutoDelete(pods []*v1.Pod, autoDeleteThreshold time.Duration, now time.Time) {
 	if len(pods) == 0 {
 		return
@@ -29,13 +29,15 @@ func runAutoDelete(pods []*v1.Pod, autoDeleteThreshold time.Duration, now time.T
 			continue
 		}
 
-		eligible, needManual, reason := isAutoDeleteEligible(pod, targetNS)
+		eligible, needManual, inScope, reason := isAutoDeleteEligible(pod, targetNS)
 		key := fmt.Sprintf("%s/%s", pod.Namespace, pod.Name)
-		terminatingFor := now.Sub(pod.DeletionTimestamp.Time).Round(time.Second)
+		terminatingFor := now.Sub(terminatingSince(pod)).Round(time.Second)
 
 		switch {
 		case needManual:
 			log.Warnf("[pod-autodelete] %s 已 Terminating %v，%s", key, terminatingFor, reason)
+		case !eligible && inScope:
+			log.Infof("[pod-autodelete] %s 跳过自动删除：%s", key, reason)
 		case !eligible:
 			log.Debugf("[pod-autodelete] %s 跳过自动删除：%s", key, reason)
 		case !enabled:

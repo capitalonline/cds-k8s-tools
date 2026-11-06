@@ -134,6 +134,17 @@ func buildPendingLine(pod *v1.Pod, now time.Time) string {
 		name, ready, status, restarts, age, ip, node, nominated, gates)
 }
 
+// terminatingSince 返回 Pod 真正开始 Terminating 的时间。
+// 注意 DeletionTimestamp 存的是"删除截止时间"(删除时刻 + gracePeriod)，不是删除开始时间，
+// 直接用它算时长会少算一个优雅退出窗口（默认 30s），日志/告警里的 Terminating 时长会偏小。
+func terminatingSince(pod *v1.Pod) time.Time {
+	start := pod.DeletionTimestamp.Time
+	if pod.DeletionGracePeriodSeconds != nil {
+		start = start.Add(-time.Duration(*pod.DeletionGracePeriodSeconds) * time.Second)
+	}
+	return start
+}
+
 // buildTerminatingInfo 采集 terminating Pod 的信息（对齐 shell 脚本：namespace/name/spec.nodeName/status.hostIP）
 func buildTerminatingInfo(pod *v1.Pod, now time.Time) TerminatingPodInfo {
 	return TerminatingPodInfo{
@@ -141,7 +152,7 @@ func buildTerminatingInfo(pod *v1.Pod, now time.Time) TerminatingPodInfo {
 		Name:            pod.Name,
 		Node:            pod.Spec.NodeName,
 		NodeIP:          pod.Status.HostIP,
-		DurationSeconds: int64(now.Sub(pod.DeletionTimestamp.Time).Seconds()),
+		DurationSeconds: int64(now.Sub(terminatingSince(pod)).Seconds()),
 	}
 }
 
