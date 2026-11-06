@@ -55,6 +55,7 @@ func checkAndSend(clusterId string) {
 		TerminatingThresholdMinutes: terminatingThresholdMinutes,
 	}
 	now := time.Now()
+	terminatingPods := make([]*v1.Pod, 0)
 
 	for i := range pods.Items {
 		pod := &pods.Items[i]
@@ -71,8 +72,14 @@ func checkAndSend(clusterId string) {
 
 		if pod.DeletionTimestamp != nil && now.Sub(pod.DeletionTimestamp.Time) > terminatingThreshold {
 			req.TerminatingPods = append(req.TerminatingPods, buildTerminatingInfo(pod, now))
+			terminatingPods = append(terminatingPods, pod)
 		}
 	}
+
+	// 自动删除是告警之外的独立旁路：告警走原有协议上报 cckservice，
+	// 自动删除只打本地日志，两者共用同一份已采集的 Terminating Pod 列表，互不影响。
+	autoDeleteThreshold := terminatingThreshold + time.Duration(getAutoDeleteDelayMinutes())*time.Minute
+	runAutoDelete(terminatingPods, autoDeleteThreshold, now)
 
 	if len(req.PendingPods) == 0 && len(req.TerminatingPods) == 0 {
 		log.Debugf("no abnormal pod, cluster=%s", clusterId)
