@@ -135,11 +135,14 @@ func buildPendingLine(pod *v1.Pod, now time.Time) string {
 }
 
 // terminatingSince 返回 Pod 真正开始 Terminating 的时间。
-// 注意 DeletionTimestamp 存的是"删除截止时间"(删除时刻 + gracePeriod)，不是删除开始时间，
-// 直接用它算时长会少算一个优雅退出窗口（默认 30s），日志/告警里的 Terminating 时长会偏小。
+//
+// DeletionTimestamp 并不总是删除开始时间：
+//   - 无 finalizer：API Server 把它设成"删除时刻 + gracePeriod"（删除截止时间），
+//     直接相减会少算一个优雅退出窗口（默认 30s），需要把 gracePeriod 减回去；
+//   - 有 finalizer：DeletionTimestamp 就是删除时刻本身，此时不能再减，否则时长会虚高。
 func terminatingSince(pod *v1.Pod) time.Time {
 	start := pod.DeletionTimestamp.Time
-	if pod.DeletionGracePeriodSeconds != nil {
+	if len(pod.Finalizers) == 0 && pod.DeletionGracePeriodSeconds != nil {
 		start = start.Add(-time.Duration(*pod.DeletionGracePeriodSeconds) * time.Second)
 	}
 	return start
