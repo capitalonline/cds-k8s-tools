@@ -1,14 +1,12 @@
-# cds-pod-alarm 联调部署文件（沙箱集群 35ste7，K8s 1.26）
-# 用法：kubectl apply -f releases/cds-pod-alarm-ben-dev-1106.yaml
+# cds-pod-alarm 生产部署文件（K8s 1.24+，含 1.26）
+# 用法：kubectl apply -f releases/cds-pod-alarm-1.26.yaml
 # 回滚：kubectl -n kube-system scale deploy/cds-pod-alarm --replicas=0
 #
-# 镜像需先构建并推送（本分支代码，不能用 v2.0.0）：
-#   docker build --build-arg bin_file=cds-pod-alarm \
-#     -t registry-bj.capitalonline.net/cck/cds-pod-alarm:ben-dev-1106-A .
-#   docker push registry-bj.capitalonline.net/cck/cds-pod-alarm:ben-dev-1106-A
+# 环境：不设置 DEPLOY_TYPE/OPENAPI_IP，代码默认 APIHost = http://cdsapi.capitalonline.net（生产）。
+#       注意：未设置 DEPLOY_TYPE 时启动会打印一条 "unknown evn" error 日志，但连的仍是生产；
+#       若想消除该日志，可加 env: DEPLOY_TYPE=pro（效果与默认一致）。
 #
-# 注意：DEPLOY_TYPE 写死 pre，网关地址由 pkg/utils/init.go 决定（DEPLOY_TYPE=pre 时连预生产 OpenAPI）。
-# 该集群挂的是真实 AK 和真实 cluster_id，pending/terminating 告警会真实发到 pre 一线群。
+# 镜像：上生产请替换为正式版本 tag；这里保留当前联调 tag。
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -27,8 +25,8 @@ data:
     pod.terminating.threshold.minutes = 10
     # 自动删除总开关：no=dry-run（只打印"将会强制删除"日志）；确认名单无误后改 yes
     pod.autodelete.enabled = no
-    # 告警阈值之外再等待的分钟数，实际删除阈值 = terminating 阈值 + 该值
-    pod.autodelete.delay.minutes = 5
+    # 告警阈值之外再等待的分钟数，实际删除阈值 = terminating 阈值 + 该值（可填 0 表示不额外延迟）
+    pod.autodelete.delay.minutes = 0
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -82,21 +80,18 @@ spec:
         app: cds-pod-alarm
     spec:
       serviceAccountName: cds-pod-alarm-sa
-      # 1.24+ 集群 master 节点的 label 是 control-plane，原来的 kubernetes.io/master 匹配不到任何节点
+      # 1.24+ master 节点 label 为 control-plane
       nodeSelector:
         node-role.kubernetes.io/control-plane: ""
       tolerations:
         - key: "node-role.cck.net/infra"
           effect: NoSchedule
-        - key: "node-role.kubernetes.io/master"
-          effect: NoSchedule
-        # 1.24+ 集群 master 节点的 taint key 变更，缺这条会导致 Pod Pending
         - key: "node-role.kubernetes.io/control-plane"
           effect: NoSchedule
       dnsPolicy: Default
       containers:
         - name: cds-pod-alarm
-          image: registry-bj.capitalonline.net/cck/cds-pod-alarm:ben-dev-1106-A
+          image: registry-bj.capitalonline.net/cck/cds-pod-alarm:ben-dev-1123-A
           imagePullPolicy: Always
           env:
             - name: CDS_ACCESS_KEY_ID
@@ -114,10 +109,6 @@ spec:
                 configMapKeyRef:
                   name: cds-properties
                   key: k8s_cluster_id
-            - name: DEPLOY_TYPE
-              value: "pre"
-            - name: OPENAPI_IP
-              value: "106.3.136.106"
           resources:
             requests:
               cpu: 50m

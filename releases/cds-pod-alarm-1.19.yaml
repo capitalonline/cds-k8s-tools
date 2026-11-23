@@ -1,0 +1,127 @@
+# cds-pod-alarm 生产部署文件（K8s <1.24，如 1.19）
+# 用法：kubectl apply -f releases/cds-pod-alarm-1.19.yaml
+# 回滚：kubectl -n kube-system scale deploy/cds-pod-alarm --replicas=0
+#
+# 环境：不设置 DEPLOY_TYPE/OPENAPI_IP，代码默认 APIHost = http://cdsapi.capitalonline.net（生产）。
+#       注意：未设置 DEPLOY_TYPE 时启动会打印一条 "unknown evn" error 日志，但连的仍是生产；
+#       若想消除该日志，可加 env: DEPLOY_TYPE=pro（效果与默认一致）。
+#
+# 与 1.26 版的差异：master 节点 label/taint 用 node-role.kubernetes.io/master（1.24 之前）。
+#
+# 镜像：上生产请替换为正式版本 tag；这里保留当前联调 tag。
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pod-alarm-configmap
+  namespace: kube-system
+data:
+  pod-alarm-config: |+
+    [default]
+    # 检测间隔(秒)
+    pod.check.step = 120
+    # 监控命名空间，逗号分隔，可多选。【必填】告警和自动删除共用该范围，留空组件启动失败
+    pod.monitor.namespaces = default
+    # Pending 状态告警阈值(分钟)
+    pod.pending.threshold.minutes = 20
+    # Terminating 状态告警阈值(分钟)
+    pod.terminating.threshold.minutes = 10
+    # 自动删除总开关：no=dry-run（只打印"将会强制删除"日志）；确认名单无误后改 yes
+    pod.autodelete.enabled = no
+    # 告警阈值之外再等待的分钟数，实际删除阈值 = terminating 阈值 + 该值（可填 0 表示不额外延迟）
+    pod.autodelete.delay.minutes = 0
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cds-pod-alarm-sa
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cds-pod-alarm-cluster-role
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - get
+      - list
+      - watch
+      - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cds-pod-alarm-role-bind
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cds-pod-alarm-cluster-role
+subjects:
+  - kind: ServiceAccount
+    name: cds-pod-alarm-sa
+    namespace: kube-system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cds-pod-alarm
+  namespace: kube-system
+  labels:
+    app: cds-pod-alarm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cds-pod-alarm
+  template:
+    metadata:
+      labels:
+        app: cds-pod-alarm
+    spec:
+      serviceAccountName: cds-pod-alarm-sa
+      # 1.24 之前 master 节点 label 为 master
+      nodeSelector:
+        node-role.kubernetes.io/master: ""
+      tolerations:
+        - key: "node-role.cck.net/infra"
+          effect: NoSchedule
+        - key: "node-role.kubernetes.io/master"
+          effect: NoSchedule
+      dnsPolicy: Default
+      containers:
+        - name: cds-pod-alarm
+          image: registry-bj.capitalonline.net/cck/cds-pod-alarm:ben-dev-1123-A
+          imagePullPolicy: Always
+          env:
+            - name: CDS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: cck-secrets
+                  key: access_key_id
+            - name: CDS_ACCESS_KEY_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: cck-secrets
+                  key: access_key_secret
+            - name: CDS_CLUSTER_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: cds-properties
+                  key: k8s_cluster_id
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          volumeMounts:
+            - name: pod-alarm-config
+              mountPath: /pod-alarm/
+      volumes:
+        - name: pod-alarm-config
+          configMap:
+            name: pod-alarm-configmap
