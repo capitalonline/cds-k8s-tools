@@ -3,6 +3,7 @@ package podalarm
 import (
 	"cds-k8s-tools/pkg/config"
 	"cds-k8s-tools/pkg/consts"
+	"strconv"
 	"strings"
 )
 
@@ -73,11 +74,17 @@ func getAutoDeleteEnabled() bool {
 }
 
 // getAutoDeleteDelayMinutes 告警阈值之后额外等待的分钟数。
-// 实际自动删除阈值 = getTerminatingThresholdMinutes() + 该值，因此自动删除必然晚于告警。
+// 实际自动删除阈值 = getTerminatingThresholdMinutes() + 该值。
+// 显式配置（含 0）按配置生效；只有 key 未配置/为空/非数字/负数时才回落到默认 5。
+// 0 表示"不做额外延迟"，即删除阈值 = terminating 告警阈值。
 func getAutoDeleteDelayMinutes() int {
-	m := conf.GetKeyInt(DefaultConfig, AutoDeleteDelayMinutes)
-	if m <= 0 {
-		m = 5
+	raw := strings.TrimSpace(conf.GetKeyString(DefaultConfig, AutoDeleteDelayMinutes))
+	if raw == "" {
+		return 5
+	}
+	m, err := strconv.Atoi(raw)
+	if err != nil || m < 0 {
+		return 5
 	}
 	return m
 }
