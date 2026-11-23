@@ -82,7 +82,7 @@ func checkAndSend(clusterId string) {
 			})
 		}
 
-		if pod.DeletionTimestamp != nil && now.Sub(pod.DeletionTimestamp.Time) > terminatingThreshold {
+		if pod.DeletionTimestamp != nil && now.Sub(terminatingSince(pod)) > terminatingThreshold {
 			req.TerminatingPods = append(req.TerminatingPods, buildTerminatingInfo(pod, now))
 			terminatingPods = append(terminatingPods, pod)
 		}

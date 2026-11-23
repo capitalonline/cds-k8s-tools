@@ -24,7 +24,7 @@ func runAutoDelete(pods []*v1.Pod, autoDeleteThreshold time.Duration, now time.T
 	enabled := getAutoDeleteEnabled()
 
 	for _, pod := range pods {
-		if now.Sub(pod.DeletionTimestamp.Time) < autoDeleteThreshold {
+		if now.Sub(terminatingSince(pod)) < autoDeleteThreshold {
 			continue
 		}
 
